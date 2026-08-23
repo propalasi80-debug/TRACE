@@ -6,6 +6,13 @@ import { getAttributes } from "./stats";
    Challenges, generated from the player's own library, not canned.
    --------------------------------------------------------------- */
 
+export type ChallengeMetric =
+  | "game_achievements"
+  | "any_achievements"
+  | "game_launched"
+  | "game_hours"
+  | "games_touched";
+
 export interface ChallengeRow {
   id: string;
   slug: string;
@@ -16,9 +23,15 @@ export interface ChallengeRow {
   progress: number;
   xp: number;
   badge: string | null;
+  metric: ChallengeMetric | null;
+  target_game_id: string | null;
+  baseline: number;
   expires_at: string;
   completed_at: string | null;
 }
+
+const CHALLENGE_COLUMNS = `id, slug, kind, title, description, target, progress, xp, badge,
+            metric, target_game_id, baseline, expires_at::text, completed_at::text`;
 
 function endOfDay(): Date {
   const d = new Date();
@@ -34,18 +47,39 @@ function endOfWeek(): Date {
   return d;
 }
 
-export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> {
-  const existing = await query<ChallengeRow>(
-    `select id, slug, kind, title, description, target, progress, xp, badge,
-            expires_at::text, completed_at::text
+async function listChallenges(userId: string): Promise<ChallengeRow[]> {
+  return query<ChallengeRow>(
+    `select ${CHALLENGE_COLUMNS}
        from challenges where user_id = $1 and expires_at > now()
-      order by kind, xp desc`,
+      order by (completed_at is not null), kind, xp desc`,
     [userId]
   );
+}
+
+interface Draft {
+  slug: string;
+  kind: "Daily" | "Weekly";
+  title: string;
+  description: string;
+  target: number;
+  xp: number;
+  badge: string | null;
+  metric: ChallengeMetric;
+  targetGameId: string | null;
+  baseline: number;
+  expiresAt: string;
+}
+
+export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> {
+  const existing = await listChallenges(userId);
   if (existing.length > 0) return existing;
 
-  const nearMiss = await one<{ name: string; earned: number; total: number }>(
-    `select g.name, ug.achievements_earned as earned, ug.achievements_total as total
+  const day = endOfDay().toISOString();
+  const week = endOfWeek().toISOString();
+  const drafts: Draft[] = [];
+
+  const nearMiss = await one<{ id: string; name: string; earned: number; total: number }>(
+    `select g.id, g.name, ug.achievements_earned as earned, ug.achievements_total as total
        from user_games ug join games g on g.id = ug.game_id
       where ug.user_id = $1 and ug.achievements_total > 0
         and ug.achievements_earned < ug.achievements_total
@@ -53,40 +87,29 @@ export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> 
       order by ug.completion_pct desc limit 1`,
     [userId]
   );
-
-  const dusty = await one<{ name: string }>(
-    `select g.name from user_games ug join games g on g.id = ug.game_id
-      where ug.user_id = $1 and ug.playtime_minutes > 120
-        and (ug.last_played_at is null or ug.last_played_at < now() - interval '180 days')
-      order by ug.playtime_minutes desc limit 1`,
-    [userId]
-  );
-
-  const untouched = await one<{ name: string }>(
-    `select g.name from user_games ug join games g on g.id = ug.game_id
-      where ug.user_id = $1 and ug.playtime_minutes = 0
-      order by random() limit 1`,
-    [userId]
-  );
-
-  const drafts: Omit<ChallengeRow, "id" | "progress" | "completed_at">[] = [];
-  const day = endOfDay().toISOString();
-  const week = endOfWeek().toISOString();
-
   if (nearMiss) {
+    const left = nearMiss.total - nearMiss.earned;
     drafts.push({
       slug: "closer",
       kind: "Daily",
       title: "Closer",
-      description: `You are ${nearMiss.total - nearMiss.earned} achievement${
-        nearMiss.total - nearMiss.earned === 1 ? "" : "s"
-      } from finishing ${nearMiss.name}. Take one of them today.`,
+      description: `You are ${left} achievement${left === 1 ? "" : "s"} from finishing ${nearMiss.name}. Take one of them today.`,
       target: 1,
       xp: 220,
       badge: null,
-      expires_at: day,
+      metric: "game_achievements",
+      targetGameId: nearMiss.id,
+      baseline: nearMiss.earned,
+      expiresAt: day,
     });
   }
+
+  const untouched = await one<{ id: string; name: string }>(
+    `select g.id, g.name from user_games ug join games g on g.id = ug.game_id
+      where ug.user_id = $1 and ug.playtime_minutes = 0
+      order by random() limit 1`,
+    [userId]
+  );
   if (untouched) {
     drafts.push({
       slug: "cold-start",
@@ -96,9 +119,21 @@ export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> 
       target: 1,
       xp: 150,
       badge: null,
-      expires_at: day,
+      metric: "game_launched",
+      targetGameId: untouched.id,
+      baseline: 0,
+      expiresAt: day,
     });
   }
+
+  const dusty = await one<{ id: string; name: string; minutes: number }>(
+    `select g.id, g.name, ug.playtime_minutes as minutes
+       from user_games ug join games g on g.id = ug.game_id
+      where ug.user_id = $1 and ug.playtime_minutes > 120
+        and (ug.last_played_at is null or ug.last_played_at < now() - interval '180 days')
+      order by ug.playtime_minutes desc limit 1`,
+    [userId]
+  );
   if (dusty) {
     drafts.push({
       slug: "long-haul",
@@ -108,19 +143,20 @@ export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> 
       target: 6,
       xp: 600,
       badge: "Marathon",
-      expires_at: week,
+      metric: "game_hours",
+      targetGameId: dusty.id,
+      baseline: dusty.minutes,
+      expiresAt: week,
     });
   }
-  drafts.push({
-    slug: "second-opinion",
-    kind: "Weekly",
-    title: "Second Opinion",
-    description: "Play two games from your Suggestions list this week.",
-    target: 2,
-    xp: 450,
-    badge: null,
-    expires_at: week,
-  });
+
+  const totals = await one<{ earned: string; touched: string }>(
+    `select
+       (select count(*) from user_achievements where user_id = $1 and unlocked_at is not null)::text as earned,
+       (select count(*) from user_games where user_id = $1 and playtime_minutes > 0)::text as touched`,
+    [userId]
+  );
+
   drafts.push({
     slug: "clean-sweep",
     kind: "Weekly",
@@ -129,25 +165,203 @@ export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> 
     target: 5,
     xp: 520,
     badge: "Specialist",
-    expires_at: week,
+    metric: "any_achievements",
+    targetGameId: null,
+    baseline: Number(totals?.earned ?? 0),
+    expiresAt: week,
+  });
+
+  drafts.push({
+    slug: "second-opinion",
+    kind: "Weekly",
+    title: "Second Opinion",
+    description: "Start two games you have never played before.",
+    target: 2,
+    xp: 450,
+    badge: null,
+    metric: "games_touched",
+    targetGameId: null,
+    baseline: Number(totals?.touched ?? 0),
+    expiresAt: week,
   });
 
   for (const d of drafts) {
     await query(
-      `insert into challenges (user_id, slug, kind, title, description, target, xp, badge, expires_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `insert into challenges
+         (user_id, slug, kind, title, description, target, xp, badge, metric, target_game_id, baseline, expires_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        on conflict (user_id, slug, expires_at) do nothing`,
-      [userId, d.slug, d.kind, d.title, d.description, d.target, d.xp, d.badge, d.expires_at]
+      [userId, d.slug, d.kind, d.title, d.description, d.target, d.xp, d.badge,
+       d.metric, d.targetGameId, d.baseline, d.expiresAt]
     );
   }
 
-  return query<ChallengeRow>(
-    `select id, slug, kind, title, description, target, progress, xp, badge,
-            expires_at::text, completed_at::text
-       from challenges where user_id = $1 and expires_at > now()
-      order by kind, xp desc`,
+  return listChallenges(userId);
+}
+
+/** Where a challenge's metric stands right now. */
+async function currentValue(userId: string, c: ChallengeRow): Promise<number> {
+  switch (c.metric) {
+    case "game_achievements": {
+      if (!c.target_game_id) return 0;
+      const r = await one<{ n: string }>(
+        `select coalesce(achievements_earned, 0)::text as n from user_games
+          where user_id = $1 and game_id = $2`,
+        [userId, c.target_game_id]
+      );
+      return Number(r?.n ?? 0);
+    }
+    case "game_hours": {
+      if (!c.target_game_id) return 0;
+      const r = await one<{ n: string }>(
+        `select coalesce(playtime_minutes, 0)::text as n from user_games
+          where user_id = $1 and game_id = $2`,
+        [userId, c.target_game_id]
+      );
+      return Number(r?.n ?? 0);
+    }
+    case "game_launched": {
+      if (!c.target_game_id) return 0;
+      const r = await one<{ n: string }>(
+        `select (playtime_minutes > 0)::int::text as n from user_games
+          where user_id = $1 and game_id = $2`,
+        [userId, c.target_game_id]
+      );
+      return Number(r?.n ?? 0);
+    }
+    case "any_achievements": {
+      const r = await one<{ n: string }>(
+        `select count(*)::text as n from user_achievements
+          where user_id = $1 and unlocked_at is not null`,
+        [userId]
+      );
+      return Number(r?.n ?? 0);
+    }
+    case "games_touched": {
+      const r = await one<{ n: string }>(
+        `select count(*)::text as n from user_games
+          where user_id = $1 and playtime_minutes > 0`,
+        [userId]
+      );
+      return Number(r?.n ?? 0);
+    }
+    default:
+      return 0;
+  }
+}
+
+/** Convert a raw metric reading into progress against the challenge target. */
+function toProgress(c: ChallengeRow, value: number): number {
+  const delta = value - c.baseline;
+  if (c.metric === "game_hours") return Math.max(0, Math.floor(delta / 60));
+  if (c.metric === "game_launched") return Math.max(0, Math.min(1, value));
+  return Math.max(0, delta);
+}
+
+export interface ChallengeOutcome {
+  completed: string[];
+  xpAwarded: number;
+}
+
+/**
+ * Re-measure every open challenge. Called after a sync, because a sync is the
+ * only moment TRACE learns anything new about what was played.
+ */
+export async function evaluateChallenges(userId: string): Promise<ChallengeOutcome> {
+  const open = await query<ChallengeRow>(
+    `select ${CHALLENGE_COLUMNS}
+       from challenges
+      where user_id = $1 and expires_at > now() and completed_at is null and metric is not null`,
     [userId]
   );
+
+  const completed: string[] = [];
+  let xpAwarded = 0;
+
+  for (const c of open) {
+    const progress = Math.min(c.target, toProgress(c, await currentValue(userId, c)));
+    if (progress === c.progress) continue;
+
+    const done = progress >= c.target;
+    await query(
+      `update challenges set progress = $2, completed_at = case when $3 then now() else null end
+        where id = $1`,
+      [c.id, progress, done]
+    );
+
+    if (done) {
+      completed.push(c.title);
+      xpAwarded += c.xp;
+      await query(`insert into xp_ledger (user_id, amount, reason) values ($1,$2,$3)`, [
+        userId,
+        c.xp,
+        `Challenge complete: ${c.title}`,
+      ]);
+      if (c.badge) {
+        await query(
+          `insert into user_badges (user_id, slug, name) values ($1,$2,$3)
+           on conflict (user_id, slug) do nothing`,
+          [userId, c.badge.toLowerCase().replace(/[^a-z0-9]+/g, "-"), c.badge]
+        );
+      }
+    }
+  }
+
+  return { completed, xpAwarded };
+}
+
+/* ---------------------------------------------------------------
+   Milestones, awarded from real totals rather than displayed live.
+   --------------------------------------------------------------- */
+
+export interface MilestoneDef {
+  slug: string;
+  name: string;
+  requirement: string;
+  /** Current value and the value needed, from a user's summary. */
+  read: (s: MilestoneInput) => { current: number; target: number };
+}
+
+export interface MilestoneInput {
+  games: number;
+  hours: number;
+  achievements: number;
+  completionPct: number;
+}
+
+export const MILESTONES: MilestoneDef[] = [
+  { slug: "first-light", name: "First Light", requirement: "Sync your first platform",
+    read: (s) => ({ current: s.games > 0 ? 1 : 0, target: 1 }) },
+  { slug: "collector", name: "Collector", requirement: "50 games in your library",
+    read: (s) => ({ current: s.games, target: 50 }) },
+  { slug: "archivist", name: "Archivist", requirement: "250 games in your library",
+    read: (s) => ({ current: s.games, target: 250 }) },
+  { slug: "marathon", name: "Marathon", requirement: "1,000 hours played",
+    read: (s) => ({ current: s.hours, target: 1000 }) },
+  { slug: "decade", name: "Decade", requirement: "4,000 hours played",
+    read: (s) => ({ current: s.hours, target: 4000 }) },
+  { slug: "specialist", name: "Specialist", requirement: "500 achievements",
+    read: (s) => ({ current: s.achievements, target: 500 }) },
+  { slug: "completionist", name: "Completionist", requirement: "60% average completion",
+    read: (s) => ({ current: s.completionPct, target: 60 }) },
+  { slug: "perfectionist", name: "Perfectionist", requirement: "85% average completion",
+    read: (s) => ({ current: s.completionPct, target: 85 }) },
+];
+
+/** Write newly reached milestones so their earned date is real, not inferred. */
+export async function awardMilestones(userId: string, input: MilestoneInput): Promise<string[]> {
+  const awarded: string[] = [];
+  for (const m of MILESTONES) {
+    const { current, target } = m.read(input);
+    if (current < target) continue;
+    const row = await one<{ slug: string }>(
+      `insert into user_badges (user_id, slug, name) values ($1,$2,$3)
+       on conflict (user_id, slug) do nothing returning slug`,
+      [userId, m.slug, m.name]
+    );
+    if (row) awarded.push(m.name);
+  }
+  return awarded;
 }
 
 /* ---------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getBadges, getXpBalance, getRarestAchievements } from "@/lib/queries";
 import { getUserSummary } from "@/lib/stats";
+import { MILESTONES } from "@/lib/engine";
 import { PageHead, Empty, Grid, Meter, Avatar } from "@/components/app/ui";
 import { Icon } from "@/components/Icon";
 import { rarityTier, timeAgo } from "@/lib/utils";
@@ -8,45 +9,12 @@ import { rarityTier, timeAgo } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Rewards" };
 
-interface Milestone {
+interface Row {
   slug: string;
   name: string;
   requirement: string;
   progress: number;
   earned: boolean;
-}
-
-function milestones(s: {
-  games: number;
-  minutes: number;
-  achievementsEarned: number;
-  completionPct: number;
-}): Milestone[] {
-  const hours = s.minutes / 60;
-  const mk = (
-    slug: string,
-    name: string,
-    requirement: string,
-    current: number,
-    target: number
-  ): Milestone => ({
-    slug,
-    name,
-    requirement,
-    progress: Math.min(100, (current / target) * 100),
-    earned: current >= target,
-  });
-
-  return [
-    mk("first-light", "First Light", "Sync your first platform", s.games > 0 ? 1 : 0, 1),
-    mk("collector", "Collector", "50 games in your library", s.games, 50),
-    mk("archivist", "Archivist", "250 games in your library", s.games, 250),
-    mk("marathon", "Marathon", "1,000 hours played", hours, 1000),
-    mk("decade", "Decade", "4,000 hours played", hours, 4000),
-    mk("specialist", "Specialist", "500 achievements", s.achievementsEarned, 500),
-    mk("completionist", "Completionist", "60% average completion", s.completionPct, 60),
-    mk("perfectionist", "Perfectionist", "85% average completion", s.completionPct, 85),
-  ];
 }
 
 export default async function RewardsPage() {
@@ -72,7 +40,24 @@ export default async function RewardsPage() {
   }
 
   const earnedAt = new Map(badges.map((b) => [b.slug, b.earned_at]));
-  const list = milestones(summary);
+  const input = {
+    games: summary.games,
+    hours: summary.minutes / 60,
+    achievements: summary.achievementsEarned,
+    completionPct: summary.completionPct,
+  };
+  const list: Row[] = MILESTONES.map((m) => {
+    const { current, target } = m.read(input);
+    return {
+      slug: m.slug,
+      name: m.name,
+      requirement: m.requirement,
+      progress: Math.min(100, (current / target) * 100),
+      // An awarded row is the source of truth; the live read only covers the
+      // window between reaching a milestone and the next sync writing it down.
+      earned: earnedAt.has(m.slug) || current >= target,
+    };
+  });
   const earnedCount = list.filter((m) => m.earned).length;
 
   return (

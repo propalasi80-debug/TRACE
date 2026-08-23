@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { countLibrary, getLibrary, getPlatformBreakdown, normaliseSort } from "@/lib/queries";
 import { PageHead, Meter, CoverArt, Empty, Grid, PlatformTag } from "@/components/app/ui";
 import { PlatformMark } from "@/components/PlatformMark";
+import { ChipLink } from "@/components/app/PendingLink";
 import { Icon } from "@/components/Icon";
 import { formatHours } from "@/lib/utils";
 import type { Platform } from "@/lib/types";
@@ -111,12 +112,7 @@ export default async function LibraryPage({
                   : breakdown.find((b) => b.platform === f.key)?.games;
             if (f.key !== "all" && f.key !== "unplayed" && !count) return null;
             return (
-              <Link
-                key={f.key}
-                href={linkFor({ p: f.key })}
-                className="chip"
-                data-active={platform === f.key}
-              >
+              <ChipLink key={f.key} href={linkFor({ p: f.key })} active={platform === f.key}>
                 {f.key !== "all" && f.key !== "unplayed" && (
                   <PlatformMark platform={f.key as Platform} size={12} />
                 )}
@@ -126,7 +122,7 @@ export default async function LibraryPage({
                     {count}
                   </span>
                 )}
-              </Link>
+              </ChipLink>
             );
           })}
         </div>
@@ -138,15 +134,9 @@ export default async function LibraryPage({
           </span>
           <div className="flex flex-wrap" style={{ gap: 6 }}>
             {SORTS.map((s) => (
-              <Link
-                key={s.key}
-                href={linkFor({ sort: s.key })}
-                className="chip"
-                data-active={sort === s.key}
-                style={{ minHeight: 30, fontSize: 12, padding: "0 10px" }}
-              >
+              <ChipLink key={s.key} href={linkFor({ sort: s.key })} active={sort === s.key} small>
                 {s.label}
-              </Link>
+              </ChipLink>
             ))}
           </div>
         </div>
@@ -171,7 +161,12 @@ export default async function LibraryPage({
       ) : (
         <Grid min={172} gap={14}>
           {games.map((g) => (
-            <article key={g.id} className="card card-hover" style={{ overflow: "hidden" }}>
+            <Link
+              key={g.id}
+              href={`/library/${g.id}`}
+              className="card card-hover"
+              style={{ overflow: "hidden", color: "var(--text)", display: "block" }}
+            >
               <CoverArt
                 src={g.cover_url}
                 name={g.name}
@@ -190,7 +185,7 @@ export default async function LibraryPage({
                 </div>
                 <Meter pct={g.completion_pct} />
               </div>
-            </article>
+            </Link>
           ))}
         </Grid>
       )}

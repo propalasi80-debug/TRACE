@@ -46,6 +46,7 @@ export function Connections({ accounts }: { accounts: PlatformAccountRow[] }) {
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
+  const [progress, setProgress] = useState<{ platform: Platform; pass: number; remaining: number } | null>(null);
   const [, startTransition] = useTransition();
 
   const refresh = () => startTransition(() => router.refresh());
@@ -92,19 +93,64 @@ export function Connections({ accounts }: { accounts: PlatformAccountRow[] }) {
     }
   }
 
+  async function runSync(platform: Platform): Promise<{ remaining: number; message: string }> {
+    const res = await fetch(`/api/sync/${platform}`, { method: "POST" });
+    const data = (await res.json()) as {
+      error?: string;
+      message?: string;
+      remaining?: number;
+    };
+    if (!res.ok) throw new Error(data.error ?? "Sync failed.");
+    return { remaining: data.remaining ?? 0, message: data.message ?? "Synced." };
+  }
+
   async function sync(platform: Platform) {
     setBusy(`sync-${platform}`);
     setNote(null);
     try {
-      const res = await fetch(`/api/sync/${platform}`, { method: "POST" });
-      const data = (await res.json()) as { error?: string; message?: string; remaining?: number };
-      if (!res.ok) throw new Error(data.error ?? "Sync failed.");
-      setNote({ kind: "ok", text: data.message ?? "Synced." });
+      const { message } = await runSync(platform);
+      setNote({ kind: "ok", text: message });
       refresh();
     } catch (err) {
       setNote({ kind: "bad", text: err instanceof Error ? err.message : "Sync failed." });
     } finally {
       setBusy(null);
+    }
+  }
+
+  /**
+   * Each pass covers a fixed batch of games, so a first-time sync needs several.
+   * This runs them back to back until nothing is stale, capped so a platform
+   * that never drains cannot loop forever.
+   */
+  async function syncAll(platform: Platform) {
+    setBusy(`all-${platform}`);
+    setNote(null);
+    let pass = 0;
+    try {
+      for (; pass < 12; pass++) {
+        const { remaining, message } = await runSync(platform);
+        setProgress({ platform, pass: pass + 1, remaining });
+        if (remaining === 0) {
+          setNote({ kind: "ok", text: `${message} Completed in ${pass + 1} pass${pass === 0 ? "" : "es"}.` });
+          break;
+        }
+      }
+      if (pass >= 12) {
+        setNote({
+          kind: "ok",
+          text: "Stopped after 12 passes to avoid hammering the platform. Run it again to continue.",
+        });
+      }
+      refresh();
+    } catch (err) {
+      setNote({
+        kind: "bad",
+        text: `${err instanceof Error ? err.message : "Sync failed."}${pass > 0 ? ` Completed ${pass} pass${pass === 1 ? "" : "es"} first.` : ""}`,
+      });
+    } finally {
+      setBusy(null);
+      setProgress(null);
     }
   }
 
@@ -157,7 +203,7 @@ export function Connections({ accounts }: { accounts: PlatformAccountRow[] }) {
                 </div>
 
                 {account ? (
-                  <div className="flex" style={{ gap: 8 }}>
+                  <div className="flex flex-wrap" style={{ gap: 8 }}>
                     <button
                       className="btn btn-sm btn-secondary"
                       onClick={() => sync(p)}
@@ -173,6 +219,18 @@ export function Connections({ accounts }: { accounts: PlatformAccountRow[] }) {
                         <Icon name="refresh" size={14} />
                       </span>
                       {busy === `sync-${p}` ? "Syncing" : "Sync"}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => syncAll(p)}
+                      disabled={busy !== null}
+                      title="Repeats the sync until every game has been covered"
+                    >
+                      {busy === `all-${p}` && progress
+                        ? `Pass ${progress.pass}, ${progress.remaining} left`
+                        : busy === `all-${p}`
+                          ? "Starting"
+                          : "Sync everything"}
                     </button>
                     <button
                       className="btn btn-sm btn-quiet"

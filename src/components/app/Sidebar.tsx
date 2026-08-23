@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Icon, type IconName } from "@/components/Icon";
+import { type IconName } from "@/components/Icon";
+import { NavLink, TabLink } from "@/components/app/PendingLink";
 import { Logo } from "@/components/Logo";
-import { logoutAction } from "@/actions/auth";
+import { LogoutButton } from "@/components/app/LogoutButton";
 
 const PRIMARY: { href: string; label: string; icon: IconName }[] = [
   { href: "/home", label: "Home", icon: "home" },
   { href: "/library", label: "Library", icon: "library" },
+  { href: "/achievements", label: "Achievements", icon: "trophy" },
   { href: "/rating", label: "Rating", icon: "rating" },
   { href: "/suggestions", label: "Suggestions", icon: "suggestions" },
   { href: "/challenges", label: "Challenges", icon: "challenges" },
@@ -56,10 +57,7 @@ export function Sidebar() {
 
         <nav className="stack" style={{ gap: 2 }} aria-label="Main">
           {PRIMARY.map((n) => (
-            <Link key={n.href} href={n.href} className="nav-item" data-active={isActive(n.href)}>
-              <Icon name={n.icon} size={16} />
-              <span>{n.label}</span>
-            </Link>
+            <NavLink key={n.href} href={n.href} label={n.label} icon={n.icon} active={isActive(n.href)} />
           ))}
         </nav>
 
@@ -71,21 +69,9 @@ export function Sidebar() {
           aria-label="Account"
         >
           {SECONDARY.map((n) => (
-            <Link key={n.href} href={n.href} className="nav-item" data-active={isActive(n.href)}>
-              <Icon name={n.icon} size={16} />
-              <span>{n.label}</span>
-            </Link>
+            <NavLink key={n.href} href={n.href} label={n.label} icon={n.icon} active={isActive(n.href)} />
           ))}
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="nav-item"
-              style={{ width: "100%", background: "none", border: 0, cursor: "pointer" }}
-            >
-              <Icon name="logout" size={16} />
-              <span>Log out</span>
-            </button>
-          </form>
+          <LogoutButton />
         </nav>
       </aside>
 
@@ -106,27 +92,11 @@ export function Sidebar() {
           padding: "6px 4px calc(6px + env(safe-area-inset-bottom))",
         }}
       >
-        {[...PRIMARY.slice(0, 5), SECONDARY[1]].map((n) => {
-          const active = isActive(n.href);
-          return (
-            <Link
-              key={n.href}
-              href={n.href}
-              aria-label={n.label}
-              aria-current={active ? "page" : undefined}
-              className="grid place-items-center"
-              style={{
-                minWidth: 48,
-                minHeight: 46,
-                gap: 3,
-                color: active ? "var(--accent-text)" : "var(--text-4)",
-              }}
-            >
-              <Icon name={n.icon} size={19} />
-              <span style={{ fontSize: 9, letterSpacing: "0.06em" }}>{n.label}</span>
-            </Link>
-          );
-        })}
+        {[...PRIMARY.slice(0, 5), SECONDARY[1]].map((n) => (
+          <TabLink key={n.href} href={n.href} icon={n.icon} active={isActive(n.href)}>
+            {n.label}
+          </TabLink>
+        ))}
       </nav>
     </>
   );

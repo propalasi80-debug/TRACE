@@ -127,7 +127,12 @@ export default async function HomePage() {
           </div>
           <Grid min={168} gap={14}>
             {recentlyPlayed.map((g) => (
-              <article key={g.id} className="card card-hover" style={{ overflow: "hidden" }}>
+              <Link
+                key={g.id}
+                href={`/library/${g.id}`}
+                className="card card-hover"
+                style={{ overflow: "hidden", color: "var(--text)", display: "block" }}
+              >
                 <CoverArt
                   src={g.cover_url}
                   name={g.name}
@@ -147,7 +152,7 @@ export default async function HomePage() {
                   </div>
                   <Meter pct={g.completion_pct} />
                 </div>
-              </article>
+              </Link>
             ))}
           </Grid>
         </section>
@@ -199,10 +204,11 @@ export default async function HomePage() {
               {recent.map((a) => {
                 const tier = rarityTier(a.rarity_pct);
                 return (
-                  <div
+                  <Link
                     key={a.id}
-                    className="card flex items-center"
-                    style={{ gap: 13, padding: "12px 14px" }}
+                    href={a.game_id ? `/library/${a.game_id}` : "/library"}
+                    className="card card-hover flex items-center"
+                    style={{ gap: 13, padding: "12px 14px", color: "var(--text)" }}
                   >
                     <Avatar src={a.icon_url} size={38} radius={8} name={a.name} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -216,7 +222,7 @@ export default async function HomePage() {
                     <span className="badge" style={{ color: tier.color, borderColor: tier.border }}>
                       {a.rarity_pct != null ? `${a.rarity_pct.toFixed(1)}%` : tier.label}
                     </span>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

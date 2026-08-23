@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PlatformMark } from "@/components/PlatformMark";
+import { generateArt } from "@/lib/art";
 import { PLATFORM_BRANDS } from "@/lib/platforms/registry";
 import { PLATFORM_META, type Platform } from "@/lib/types";
 
@@ -94,31 +95,13 @@ export function Avatar({
   radius?: number;
   name?: string;
 }) {
-  if (src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt=""
-        width={size}
-        height={size}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: radius,
-          objectFit: "cover",
-          flex: "none",
-          border: "1px solid var(--line)",
-        }}
-      />
-    );
-  }
   const initial = name?.trim()?.[0]?.toUpperCase() ?? "";
   return (
     <div
       aria-hidden="true"
       className="grid place-items-center"
       style={{
+        position: "relative",
         width: size,
         height: size,
         borderRadius: radius,
@@ -130,9 +113,28 @@ export function Avatar({
         fontWeight: 700,
         fontSize: Math.max(11, Math.round(size * 0.36)),
         flex: "none",
+        overflow: "hidden",
       }}
     >
       {initial}
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          decoding="async"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -148,24 +150,44 @@ export function CoverArt({
   ratio?: string;
   corner?: ReactNode;
 }) {
+  const art = generateArt(name);
+
   return (
     <div
       style={{
         position: "relative",
         aspectRatio: ratio,
-        background: "var(--surface-3)",
+        background: art.background,
         display: "grid",
         alignItems: "end",
         padding: 12,
         overflow: "hidden",
       }}
     >
+      <span
+        aria-hidden="true"
+        className="t-display"
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          fontSize: "clamp(30px, 26%, 64px)",
+          letterSpacing: "0.06em",
+          color: art.accent,
+          opacity: 0.34,
+          paddingBottom: "22%",
+        }}
+      >
+        {art.monogram}
+      </span>
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt=""
           loading="lazy"
+          decoding="async"
           style={{
             position: "absolute",
             inset: 0,
@@ -182,7 +204,7 @@ export function CoverArt({
           inset: 0,
           background: src
             ? "linear-gradient(180deg, rgba(5,6,9,0.1) 30%, rgba(5,6,9,0.88) 100%)"
-            : "linear-gradient(180deg, transparent, rgba(5,6,9,0.4))",
+            : "linear-gradient(180deg, transparent 40%, rgba(5,6,9,0.82) 100%)",
         }}
       />
       {corner && (

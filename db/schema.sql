@@ -207,3 +207,13 @@ end $$;
 -- ---------------------------------------------------------------
 alter table users add column if not exists show_playtime   boolean not null default true;
 alter table users add column if not exists share_activity  boolean not null default true;
+
+-- ---------------------------------------------------------------
+-- Challenge measurement
+--
+-- A challenge needs to know what it is watching and where the count stood
+-- when it was issued, otherwise progress cannot be derived from a sync.
+-- ---------------------------------------------------------------
+alter table challenges add column if not exists metric         text;
+alter table challenges add column if not exists target_game_id uuid references games(id) on delete set null;
+alter table challenges add column if not exists baseline       integer not null default 0;

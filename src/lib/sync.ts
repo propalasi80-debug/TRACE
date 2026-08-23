@@ -12,6 +12,8 @@ export interface SyncResult {
   achievements: number;
   remaining: number;
   message: string;
+  /** Challenges and milestones this sync completed, for the UI to report. */
+  completed: string[];
 }
 
 /** How many games get their achievement list pulled per sync pass. */
@@ -209,7 +211,10 @@ export async function syncPlatform(userId: string, platform: Platform): Promise<
       `update sync_runs set status = 'ok', finished_at = now(), games = $2, achievements = $3, message = $4 where id = $1`,
       [run?.id, result.games, result.achievements, result.message]
     );
-    await recordRating(userId);
+    result.completed = await settleProgress(userId);
+    if (result.completed.length > 0) {
+      result.message += ` Completed: ${result.completed.join(", ")}.`;
+    }
     return result;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -247,6 +252,7 @@ async function syncSteam(userId: string, steamId: string): Promise<SyncResult> {
     games: owned.length,
     achievements,
     remaining,
+    completed: [],
     message:
       remaining > 0
         ? `${owned.length} games synced. ${remaining} still need achievements. Run sync again.`
@@ -293,6 +299,7 @@ async function syncPsn(userId: string, accountRowId: string, secret: string | nu
     games: titles.length,
     achievements,
     remaining,
+    completed: [],
     message:
       remaining > 0
         ? `${titles.length} titles synced. ${remaining} still need trophies. Run sync again.`
@@ -325,6 +332,7 @@ async function syncXbox(userId: string, xuid: string, secret: string | null): Pr
     games: titles.length,
     achievements,
     remaining,
+    completed: [],
     message:
       remaining > 0
         ? `${titles.length} titles synced. ${remaining} still need achievements. Run sync again.`
@@ -332,9 +340,15 @@ async function syncXbox(userId: string, xuid: string, secret: string | null): Pr
   };
 }
 
-/** Snapshot the rating once a day so deltas mean something. */
-async function recordRating(userId: string): Promise<void> {
+/**
+ * A sync is the only moment TRACE learns anything new, so everything derived
+ * from play happens here: the rating snapshot, challenge progress, and any
+ * milestone that has just been reached.
+ */
+async function settleProgress(userId: string): Promise<string[]> {
   const { getUserSummary } = await import("./stats");
+  const { ensureChallenges, evaluateChallenges, awardMilestones } = await import("./engine");
+
   const summary = await getUserSummary(userId);
   const last = await one<{ captured_at: string }>(
     `select captured_at::text from rating_history where user_id = $1 order by captured_at desc limit 1`,
@@ -347,4 +361,34 @@ async function recordRating(userId: string): Promise<void> {
       summary.rating,
     ]);
   }
+
+  await adoptPlatformAvatar(userId);
+  await ensureChallenges(userId);
+  const { completed } = await evaluateChallenges(userId);
+  const badges = await awardMilestones(userId, {
+    games: summary.games,
+    hours: summary.minutes / 60,
+    achievements: summary.achievementsEarned,
+    completionPct: summary.completionPct,
+  });
+
+  return [...completed, ...badges];
+}
+
+/**
+ * People who sign up with an email have no picture. Once a platform is linked
+ * we already hold one, so use it rather than leaving the profile blank. Never
+ * overwrites a picture the user already has.
+ */
+async function adoptPlatformAvatar(userId: string): Promise<void> {
+  await query(
+    `update users u
+        set avatar_url = pa.avatar_url, updated_at = now()
+       from platform_accounts pa
+      where pa.user_id = u.id
+        and u.id = $1
+        and u.avatar_url is null
+        and pa.avatar_url is not null`,
+    [userId]
+  );
 }

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getRecommendations } from "@/lib/engine";
 import { getUserSummary } from "@/lib/stats";
 import { PageHead, Empty, Grid } from "@/components/app/ui";
+import { ChipLink } from "@/components/app/PendingLink";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Suggestions" };
@@ -49,17 +49,16 @@ export default async function SuggestionsPage({
           const count = t === "All" ? all.length : all.filter((r) => r.tags.includes(t)).length;
           if (count === 0 && t !== "All") return null;
           return (
-            <Link
+            <ChipLink
               key={t}
               href={t === "All" ? "/suggestions" : `/suggestions?tag=${encodeURIComponent(t)}`}
-              className="chip"
-              data-active={tag === t}
+              active={tag === t}
             >
               {t}
               <span className="tnum" style={{ color: "var(--text-4)" }}>
                 {count}
               </span>
-            </Link>
+            </ChipLink>
           );
         })}
       </div>
