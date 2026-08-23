@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireApiUser } from "@/lib/auth";
 import { query, one } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { fetchXboxProfile } from "@/lib/platforms/xbox";
@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const { apiKey } = (await req.json()) as { apiKey?: string };
     if (!apiKey || apiKey.trim().length < 20) {
       return NextResponse.json({ error: "That OpenXBL API key doesn't look right." }, { status: 400 });

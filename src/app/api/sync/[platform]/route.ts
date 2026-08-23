@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireApiUser } from "@/lib/auth";
 import { syncPlatform } from "@/lib/sync";
 import { PLATFORMS, type Platform } from "@/lib/types";
 
@@ -12,7 +12,7 @@ export async function POST(
   { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const { platform } = await params;
     if (!PLATFORMS.includes(platform as Platform)) {
       return NextResponse.json({ error: "Unknown platform." }, { status: 400 });

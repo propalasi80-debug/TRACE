@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireApiUser } from "@/lib/auth";
 import { one, query } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const { username } = (await req.json()) as { username?: string };
     if (!username) return NextResponse.json({ error: "Enter a username." }, { status: 400 });
 

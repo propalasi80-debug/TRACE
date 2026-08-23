@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireApiUser } from "@/lib/auth";
 import { query, one } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { authFromNpsso, fetchPsnProfile } from "@/lib/platforms/psn";
@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const { npsso } = (await req.json()) as { npsso?: string };
     if (!npsso || npsso.trim().length < 32) {
       return NextResponse.json({ error: "That NPSSO token doesn't look right." }, { status: 400 });

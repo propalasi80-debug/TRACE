@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 import { query, one } from "./db";
 import { randomToken, sha256 } from "./crypto";
@@ -44,12 +45,26 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
         where s.token_hash = $1 and s.expires_at > now()`,
       [sha256(token)]
     );
-  } catch {
+  } catch (err) {
+    // A failure here is indistinguishable from "logged out" to the caller, so
+    // log it. Silent nulls hid a missing-column migration in production once.
+    console.error("[trace] session lookup failed:", err instanceof Error ? err.message : err);
     return null;
   }
 });
 
+/**
+ * For pages. A missing session sends the visitor to the login page rather than
+ * throwing, so an expired cookie never renders an error screen.
+ */
 export async function requireUser(): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
+/** For route handlers, which need a status code rather than a redirect. */
+export async function requireApiUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
   return user;

@@ -69,9 +69,9 @@ export async function updateProfileAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const { requireUser } = await import("@/lib/auth");
+  const { requireApiUser } = await import("@/lib/auth");
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const displayName = String(formData.get("display_name") ?? "").trim();
     const bio = String(formData.get("bio") ?? "").trim();
     await query(
