@@ -11,7 +11,7 @@ function makePool() {
     process.env.DATABASE_URL_UNPOOLED;
   if (!connectionString) {
     throw new Error(
-      "DATABASE_URL is not set. Add your Neon/Postgres connection string to .env.local (locally) or Vercel project settings."
+      "DATABASE_URL is not set. Add your Postgres connection string (Supabase: Settings \u2192 Database \u2192 Session pooler) to .env.local locally, or to the project's environment variables on Vercel."
     );
   }
   return new Pool({

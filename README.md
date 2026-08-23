@@ -37,12 +37,23 @@ synced yet, and it says so.
 
 ### 1. Database
 
-Any Postgres works. The intended host is **Neon** through Vercel:
+Any Postgres works — Trace talks to it directly through `pg`, with no
+vendor-specific client.
 
-1. Vercel dashboard → your project → **Storage** → **Create Database** → **Neon**
-2. Vercel injects `DATABASE_URL` into the project automatically.
+**Supabase**: Project Settings → Database → Connection string → **Session
+pooler** (port 5432). Use that URI as `DATABASE_URL`. Avoid the transaction
+pooler on 6543 — it runs PgBouncer in transaction mode, which breaks the
+multi-statement transactions the sync engine uses.
 
-For local work, copy the connection string into `.env.local`.
+**Neon via Vercel**: Storage → Create Database → Neon. `DATABASE_URL` is
+injected automatically.
+
+For local work, copy the same connection string into `.env.local`.
+
+> On Supabase, the migration also enables row-level security on every table with
+> no public policies. Trace's own connection is unaffected, but it closes off
+> Supabase's auto-generated REST API, which would otherwise expose these tables
+> to anyone holding the publishable anon key.
 
 ### 2. Environment
 
@@ -73,7 +84,19 @@ curl -X POST "https://<your-app>/api/admin/migrate?secret=$ADMIN_SECRET"
 
 `db/schema.sql` is idempotent — running it twice is safe.
 
-### 4. Run it
+### 4. Push to GitHub
+
+From the project root on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\push-to-github.ps1
+```
+
+It initialises the repo, commits, and either creates the GitHub repo through
+the `gh` CLI or walks you through creating it in the browser. On macOS or Linux
+do it by hand — `git init && git add -A && git commit && git remote add origin … && git push -u origin main`.
+
+### 5. Run it
 
 ```bash
 npm install

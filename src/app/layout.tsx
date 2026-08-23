@@ -11,7 +11,6 @@ export const metadata: Metadata = {
   title: "Trace — Your gaming life. One identity.",
   description:
     "Trace reads every account you own and turns years of playing into one rating, one library and one profile that finally belongs to you.",
-  icons: { icon: "/assets/trace-mark.png" },
 };
 
 export const viewport: Viewport = {

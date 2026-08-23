@@ -28,7 +28,7 @@ export function AuthCard({
           style={{ marginBottom: 26, color: "var(--text)" }}
         >
           <Image
-            src="/assets/trace-mark.png"
+            src="/assets/trace-mark.webp"
             alt="Trace"
             width={44}
             height={30}

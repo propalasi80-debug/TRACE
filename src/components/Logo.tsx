@@ -18,7 +18,7 @@ export function Logo({
       className="flex items-center gap-[11px] text-[var(--text)] hover:text-[var(--text)]"
     >
       <Image
-        src="/assets/trace-mark.png"
+        src="/assets/trace-mark.webp"
         alt="Trace"
         width={Math.round(markSize * 1.45)}
         height={markSize}

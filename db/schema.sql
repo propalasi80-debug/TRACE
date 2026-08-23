@@ -157,3 +157,47 @@ create table if not exists user_badges (
   earned_at  timestamptz not null default now(),
   unique (user_id, slug)
 );
+
+-- ---------------------------------------------------------------
+-- Row Level Security
+--
+-- Trace connects to Postgres directly as the owner role, which bypasses RLS.
+-- But if this database is hosted on Supabase, every table in the public schema
+-- is also reachable through Supabase's REST API using the publishable anon key
+-- — which is public by design. Enabling RLS with no policies denies that path
+-- entirely while leaving the app's own direct connection untouched.
+-- ---------------------------------------------------------------
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'users','sessions','platform_accounts','games','user_games','achievements',
+    'user_achievements','sync_runs','rating_history','friendships','challenges',
+    'xp_ledger','user_badges'
+  ] loop
+    execute format('alter table %I enable row level security', t);
+    execute format('alter table %I force row level security', t);
+  end loop;
+end $$;
+
+-- The app's connection must be able to bypass RLS. Supabase's `postgres` role
+-- and any table owner already can, EXCEPT under `force row level security`,
+-- which applies to owners too — so grant the owner an explicit allow-all policy.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'users','sessions','platform_accounts','games','user_games','achievements',
+    'user_achievements','sync_runs','rating_history','friendships','challenges',
+    'xp_ledger','user_badges'
+  ] loop
+    if not exists (
+      select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = 'app_owner_all'
+    ) then
+      execute format(
+        'create policy app_owner_all on %I for all to %I using (true) with check (true)',
+        t, current_user
+      );
+    end if;
+  end loop;
+end $$;

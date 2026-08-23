@@ -60,7 +60,7 @@ export function Backdrop() {
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: "url(/assets/topo.png)",
+          backgroundImage: "url(/assets/topo.webp)",
           backgroundSize: "1500px auto",
           backgroundPosition: "18% 0",
           backgroundRepeat: "repeat",
@@ -73,7 +73,7 @@ export function Backdrop() {
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: "url(/assets/topo.png)",
+          backgroundImage: "url(/assets/topo.webp)",
           backgroundSize: "1500px auto",
           backgroundPosition: "18% 0",
           backgroundRepeat: "repeat",
