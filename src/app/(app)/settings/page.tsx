@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/auth";
 import { getConnections } from "@/lib/queries";
 import { Connections } from "@/components/app/Connections";
-import { PageHeading } from "@/components/app/ui";
 import { ProfileForm } from "@/components/app/ProfileForm";
+import { PageHead, Notice } from "@/components/app/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Settings · Trace" };
+export const metadata = { title: "Settings" };
 
 export default async function SettingsPage({
   searchParams,
@@ -16,50 +16,37 @@ export default async function SettingsPage({
   const [accounts, params] = await Promise.all([getConnections(user.id), searchParams]);
 
   return (
-    <div>
-      <PageHeading
+    <>
+      <PageHead
         title="Settings"
-        subtitle="Connections, privacy and account. Access is read-only and revocable at any time."
+        subtitle="Connections, privacy and your public profile. Platform access is read only and revocable at any time."
       />
 
-      {params.welcome && (
-        <p
-          className="card"
-          style={{
-            padding: "14px 18px",
-            marginBottom: 22,
-            fontSize: 14,
-            borderColor: "rgba(46,125,255,.3)",
-            color: "var(--text-2)",
-          }}
-        >
-          Welcome to Trace. Connect a platform below, run a sync, and the rest of the app fills in.
-        </p>
-      )}
-      {params.error && (
-        <p
-          className="card"
-          style={{
-            padding: "14px 18px",
-            marginBottom: 22,
-            fontSize: 14,
-            borderColor: "rgba(255,90,90,.3)",
-            color: "var(--danger)",
-          }}
-        >
-          {params.error}
-        </p>
+      {(params.welcome || params.error || params.linked) && (
+        <div style={{ marginBottom: 22 }}>
+          {params.error ? (
+            <Notice kind="bad">{params.error}</Notice>
+          ) : (
+            <Notice kind={params.linked ? "ok" : "info"}>
+              {params.linked
+                ? "Account linked. Run a sync below to pull your library."
+                : "Welcome to TRACE. Connect a platform below, run a sync, and the rest of the app fills in."}
+            </Notice>
+          )}
+        </div>
       )}
 
-      <div style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 22 }}>
+      <div className="stack" style={{ gap: 18, maxWidth: 780 }}>
         <Connections accounts={accounts} />
         <ProfileForm
           displayName={user.display_name}
           bio={user.bio}
-          isPublic={user.is_public}
           username={user.username}
+          isPublic={user.is_public}
+          showPlaytime={user.show_playtime}
+          shareActivity={user.share_activity}
         />
       </div>
-    </div>
+    </>
   );
 }

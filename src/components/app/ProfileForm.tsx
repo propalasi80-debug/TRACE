@@ -1,77 +1,127 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateProfileAction, type FormState } from "@/actions/auth";
+
+interface Toggle {
+  name: "is_public" | "show_playtime" | "share_activity";
+  label: string;
+  help: string;
+}
+
+const TOGGLES: Toggle[] = [
+  {
+    name: "is_public",
+    label: "Public profile",
+    help: "Anyone with your link can see your rating and library.",
+  },
+  {
+    name: "show_playtime",
+    label: "Show playtime",
+    help: "Display hours alongside each game on your public profile.",
+  },
+  {
+    name: "share_activity",
+    label: "Friend activity",
+    help: "Let friends see what you last played.",
+  },
+];
 
 export function ProfileForm({
   displayName,
   bio,
-  isPublic,
   username,
+  isPublic,
+  showPlaytime,
+  shareActivity,
 }: {
   displayName: string;
   bio: string | null;
-  isPublic: boolean;
   username: string;
+  isPublic: boolean;
+  showPlaytime: boolean;
+  shareActivity: boolean;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateProfileAction, {});
+  const [values, setValues] = useState<Record<Toggle["name"], boolean>>({
+    is_public: isPublic,
+    show_playtime: showPlaytime,
+    share_activity: shareActivity,
+  });
 
   return (
     <form action={action} className="card" style={{ padding: 24 }}>
-      <div className="eyebrow" style={{ marginBottom: 18 }}>
-        Profile &amp; privacy
+      <h2 className="t-label" style={{ marginBottom: 18 }}>
+        Profile and privacy
+      </h2>
+
+      <div style={{ marginBottom: 16 }}>
+        <label htmlFor="display_name" className="t-label" style={{ display: "block", marginBottom: 7 }}>
+          Display name
+        </label>
+        <div className="field">
+          <input id="display_name" name="display_name" defaultValue={displayName} maxLength={40} />
+        </div>
       </div>
 
-      <label htmlFor="display_name" style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>
-        Display name
-      </label>
-      <div className="field" style={{ marginBottom: 18 }}>
-        <input id="display_name" name="display_name" defaultValue={displayName} maxLength={40} />
+      <div style={{ marginBottom: 4 }}>
+        <label htmlFor="bio" className="t-label" style={{ display: "block", marginBottom: 7 }}>
+          Bio
+        </label>
+        <textarea
+          id="bio"
+          name="bio"
+          className="field"
+          defaultValue={bio ?? ""}
+          rows={3}
+          maxLength={280}
+          placeholder="Slow with a new game, obsessive by hour twenty."
+        />
       </div>
 
-      <label htmlFor="bio" style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>
-        Bio
-      </label>
-      <textarea
-        id="bio"
-        name="bio"
-        defaultValue={bio ?? ""}
-        rows={3}
-        maxLength={280}
-        placeholder="Slow with a new game, obsessive by hour twenty."
-        style={{
-          width: "100%",
-          background: "var(--input-bg)",
-          border: "1px solid rgba(255,255,255,.09)",
-          borderRadius: 9,
-          color: "var(--text)",
-          fontSize: 14,
-          padding: "12px 14px",
-          outline: "none",
-          resize: "vertical",
-          marginBottom: 18,
-        }}
-      />
+      <div className="stack" style={{ marginTop: 18 }}>
+        {TOGGLES.map((t) => (
+          <div
+            key={t.name}
+            className="flex items-center"
+            style={{ gap: 16, padding: "14px 0", borderTop: "1px solid var(--line)" }}
+          >
+            {/* the checkbox carries the value; the switch is its visible control */}
+            <input
+              type="checkbox"
+              name={t.name}
+              id={t.name}
+              className="sr-only"
+              checked={values[t.name]}
+              onChange={(e) => setValues((v) => ({ ...v, [t.name]: e.target.checked }))}
+            />
+            <label htmlFor={t.name} style={{ flex: 1, cursor: "pointer" }}>
+              <span style={{ fontSize: 14, fontWeight: 600, display: "block" }}>{t.label}</span>
+              <span className="t-sm" style={{ fontSize: 12.5 }}>
+                {t.name === "is_public" ? `${t.help} Your link is /u/${username}` : t.help}
+              </span>
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={values[t.name]}
+              aria-label={t.label}
+              className="switch"
+              onClick={() => setValues((v) => ({ ...v, [t.name]: !v[t.name] }))}
+            />
+          </div>
+        ))}
+      </div>
 
-      <label
-        className="flex items-center gap-3"
-        style={{ padding: "12px 0", borderTop: "1px solid rgba(255,255,255,.06)", cursor: "pointer" }}
+      <div
+        className="flex items-center flex-wrap"
+        style={{ gap: 12, marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--line)" }}
       >
-        <input type="checkbox" name="is_public" defaultChecked={isPublic} style={{ accentColor: "var(--accent)", width: 18, height: 18 }} />
-        <span className="flex-1">
-          <span style={{ fontSize: 14.5, fontWeight: 600, display: "block" }}>Public profile</span>
-          <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>
-            Anyone with your link can see your rating and library — /u/{username}
-          </span>
-        </span>
-      </label>
-
-      <div className="flex items-center gap-3" style={{ marginTop: 16 }}>
-        <button type="submit" className="btn-primary" disabled={pending}>
-          {pending ? "Saving…" : "Save changes"}
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          {pending ? "Saving" : "Save changes"}
         </button>
-        {state.ok && <span style={{ fontSize: 13, color: "var(--success)" }}>Saved.</span>}
-        {state.error && <span style={{ fontSize: 13, color: "var(--danger)" }}>{state.error}</span>}
+        {state.ok && <span style={{ fontSize: 13, color: "var(--ok)" }}>Saved.</span>}
+        {state.error && <span style={{ fontSize: 13, color: "var(--bad)" }}>{state.error}</span>}
       </div>
     </form>
   );

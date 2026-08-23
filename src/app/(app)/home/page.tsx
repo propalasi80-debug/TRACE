@@ -4,13 +4,13 @@ import { getUserSummary } from "@/lib/stats";
 import { getLibrary, getFriends, getRecentAchievements } from "@/lib/queries";
 import { ensureChallenges, getRecommendations } from "@/lib/engine";
 import { IdentityCard } from "@/components/app/IdentityCard";
-import { EmptyState, GameArt, Avatar, RatingBadge } from "@/components/app/ui";
-import { Icon, StarIcon } from "@/components/Icon";
-import { PLATFORM_META, type Platform } from "@/lib/types";
-import { timeAgo, rarityTier } from "@/lib/utils";
+import { Avatar, CoverArt, Empty, Grid, Meter, PlatformTag } from "@/components/app/ui";
+import { Icon } from "@/components/Icon";
+import { formatHours, ofLabel, rarityTier, timeAgo, timeUntil } from "@/lib/utils";
+import type { Platform } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Home · Trace" };
+export const metadata = { title: "Home" };
 
 export default async function HomePage() {
   const user = await requireUser();
@@ -18,279 +18,248 @@ export default async function HomePage() {
 
   if (summary.connected.length === 0) {
     return (
-      <div>
-        <div className="uppercase" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".22em", color: "var(--text-4)", marginBottom: 12 }}>
-          Welcome to Trace
+      <>
+        <div className="t-label" style={{ marginBottom: 10 }}>
+          Welcome to TRACE
         </div>
-        <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-.015em", margin: "0 0 32px" }}>
-          Let&apos;s find your history.
+        <h1 className="t-h1" style={{ marginBottom: 28 }}>
+          Let us find your history
         </h1>
-        <EmptyState
+        <Empty
           title="Nothing connected yet"
-          body="Trace has nothing to read until you link an account. Steam takes one click; PlayStation and Xbox each need a token you can grab in about a minute."
-          cta={{ href: "/settings", label: "Connect your accounts" }}
+          body="TRACE has nothing to read until you link an account. Steam takes one click. PlayStation and Xbox each need a token you can grab in about a minute."
+          cta={{ href: "/settings", label: "Connect an account" }}
         />
-      </div>
+      </>
     );
   }
 
-  const [recs, challenges, rediscover, friends, recent] = await Promise.all([
+  const [recs, challenges, recent, recentlyPlayed, friends] = await Promise.all([
     getRecommendations(user.id, 3),
     ensureChallenges(user.id),
-    getLibrary(user.id, { sort: "recent", limit: 3 }),
+    getRecentAchievements(user.id, 6),
+    getLibrary(user.id, { sort: "recent", limit: 4 }),
     getFriends(user.id),
-    getRecentAchievements(user.id, 5),
   ]);
 
-  const today = challenges.find((c) => c.kind === "Daily") ?? challenges[0];
+  const today = challenges.find((c) => c.kind === "Daily" && !c.completed_at) ?? challenges[0];
 
   return (
-    <div>
-      <div className="uppercase" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".22em", color: "var(--text-4)", marginBottom: 12 }}>
+    <>
+      <div className="t-label" style={{ marginBottom: 10 }}>
         Welcome back
       </div>
-      <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-.015em", margin: "0 0 32px" }}>
-        What should I do today?
+      <h1 className="t-h1" style={{ marginBottom: 28 }}>
+        {user.display_name}
       </h1>
 
       <div
-        data-cols2
-        className="grid"
-        style={{ gridTemplateColumns: "minmax(0,.85fr) minmax(0,1.35fr)", gap: 20, marginBottom: 44 }}
+        data-split
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 340px) minmax(0, 1fr)",
+          gap: 16,
+          marginBottom: 32,
+        }}
       >
-        <IdentityCard displayName={user.display_name} avatarUrl={user.avatar_url} summary={summary} />
+        <IdentityCard
+          displayName={user.display_name}
+          username={user.username}
+          avatarUrl={user.avatar_url}
+          summary={summary}
+          href="/rating"
+        />
 
-        <div className="card relative flex flex-col" style={{ padding: "22px 26px" }}>
-          <div className="flex justify-between items-start">
-            <div className="eyebrow">Today&apos;s challenge</div>
-            {today && (
-              <span
-                className="uppercase"
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: ".16em",
-                  color: "var(--accent)",
-                  border: "1px solid rgba(46,125,255,.4)",
-                  background: "rgba(46,125,255,.1)",
-                  borderRadius: 6,
-                  padding: "4px 9px",
-                }}
-              >
-                {today.kind}
-              </span>
-            )}
+        <section className="card stack" style={{ padding: 22 }}>
+          <div className="flex items-start justify-between" style={{ gap: 12 }}>
+            <h2 className="t-label">Today</h2>
+            {today && <span className="badge badge-accent">{today.kind}</span>}
           </div>
 
           {today ? (
             <>
-              <h2
-                className="font-display font-bold uppercase"
-                style={{ fontSize: 27, letterSpacing: ".05em", margin: "20px 0 10px" }}
-              >
+              <h3 className="t-display" style={{ fontSize: 22, margin: "18px 0 10px" }}>
                 {today.title}
-              </h2>
-              <p style={{ fontSize: 14.5, color: "var(--text-2)", margin: "0 0 20px", maxWidth: "52ch" }}>
+              </h3>
+              <p className="t-body" style={{ margin: "0 0 18px", maxWidth: "54ch" }}>
                 {today.description}
               </p>
-              <div
-                className="flex flex-wrap gap-[22px]"
-                style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 24 }}
-              >
-                <span className="flex items-center gap-[7px]">
+              <div className="flex flex-wrap items-center" style={{ gap: 18, marginBottom: 18 }}>
+                <span className="t-sm flex items-center" style={{ gap: 7 }}>
                   <Icon name="trophy" size={14} />
-                  {today.xp} XP{today.badge ? ` + ${today.badge} Badge` : ""}
+                  {today.xp} XP{today.badge ? ` and the ${today.badge} badge` : ""}
                 </span>
-                <span className="flex items-center gap-[7px]">
+                <span className="t-sm flex items-center" style={{ gap: 7 }}>
                   <Icon name="clock" size={14} />
-                  {timeAgo(today.expires_at).replace(" ago", " left")}
+                  {timeUntil(today.expires_at)}
                 </span>
               </div>
-              <span className="flex-1" />
-              <Link href="/challenges" className="btn-primary self-start" style={{ textDecoration: "none" }}>
-                See all challenges
+              <div style={{ maxWidth: 380, marginBottom: 22 }}>
+                <div
+                  className="flex justify-between t-sm"
+                  style={{ fontSize: 12, marginBottom: 7 }}
+                >
+                  <span>Progress</span>
+                  <span className="tnum">{ofLabel(today.progress, today.target)}</span>
+                </div>
+                <Meter pct={(today.progress / Math.max(1, today.target)) * 100} />
+              </div>
+              <Link href="/challenges" className="btn btn-secondary btn-sm" style={{ alignSelf: "start" }}>
+                All challenges
+                <Icon name="arrowRight" size={14} />
               </Link>
             </>
           ) : (
-            <p style={{ fontSize: 14.5, color: "var(--text-3)", margin: "20px 0 0" }}>
-              No active challenges — sync a platform and they generate from your library.
+            <p className="t-body" style={{ margin: "18px 0 0" }}>
+              No active challenges. They generate from your library the first time you sync.
             </p>
           )}
-        </div>
+        </section>
       </div>
 
-      <div className="flex items-center justify-between" style={{ marginBottom: 18 }}>
-        <div className="flex items-center gap-[10px]">
-          <StarIcon size={18} />
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Recommended for you</h2>
+      {recentlyPlayed.length > 0 && (
+        <section style={{ marginBottom: 32 }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+            <h2 className="t-h2">Recently played</h2>
+            <Link href="/library" className="t-sm">
+              Full library
+            </Link>
+          </div>
+          <Grid min={168} gap={14}>
+            {recentlyPlayed.map((g) => (
+              <article key={g.id} className="card card-hover" style={{ overflow: "hidden" }}>
+                <CoverArt
+                  src={g.cover_url}
+                  name={g.name}
+                  corner={<PlatformTag platform={g.platform as Platform} />}
+                />
+                <div style={{ padding: "12px 14px" }}>
+                  <div
+                    className="flex justify-between t-sm"
+                    style={{ fontSize: 12, marginBottom: 8 }}
+                  >
+                    <span className="tnum">
+                      {user.show_playtime ? formatHours(g.playtime_minutes) : "Hidden"}
+                    </span>
+                    <span className="tnum">
+                      {g.achievements_total > 0 ? `${Math.round(g.completion_pct)}%` : "No data"}
+                    </span>
+                  </div>
+                  <Meter pct={g.completion_pct} />
+                </div>
+              </article>
+            ))}
+          </Grid>
+        </section>
+      )}
+
+      <section style={{ marginBottom: 32 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+          <h2 className="t-h2">Suggested for you</h2>
+          <Link href="/suggestions" className="t-sm">
+            See all
+          </Link>
         </div>
-        <Link href="/suggestions" style={{ fontSize: 13, color: "var(--text-3)" }}>
-          View all →
-        </Link>
-      </div>
-      <div
-        data-cols3
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginBottom: 44 }}
-      >
-        {recs.map((r) => (
-          <div key={r.title} className="card flex flex-col" style={{ overflow: "hidden" }}>
-            <div
-              className="relative grid place-items-center"
-              style={{ aspectRatio: "16/9", background: "var(--surface-5)" }}
-            >
-              <span
-                className="font-display uppercase"
-                style={{ fontSize: 11, letterSpacing: ".22em", color: "var(--text-5)" }}
-              >
-                {r.meta.split(" · ")[1]}
-              </span>
-              <span
-                className="absolute flex items-center gap-[5px]"
-                style={{
-                  top: 12,
-                  right: 12,
-                  background: "rgba(46,125,255,.92)",
-                  color: "#fff",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  borderRadius: 7,
-                  padding: "5px 9px",
-                }}
-              >
-                {r.match}% match
-              </span>
-            </div>
-            <div className="flex flex-col flex-1" style={{ padding: "18px 20px 20px" }}>
-              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 7 }}>{r.title}</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-4)", marginBottom: 16 }}>{r.meta}</div>
-              <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--text-2)", margin: "0 0 18px" }}>
+        <Grid cols={3} gap={16}>
+          {recs.map((r) => (
+            <article key={r.title} className="card card-hover stack" style={{ padding: 20 }}>
+              <div className="flex items-start justify-between" style={{ gap: 12, marginBottom: 12 }}>
+                <h3 className="t-h3" style={{ minWidth: 0 }}>
+                  {r.title}
+                </h3>
+                <span className="badge badge-accent">{r.match}% match</span>
+              </div>
+              <div className="t-label" style={{ fontSize: 10, marginBottom: 12 }}>
+                {r.meta}
+              </div>
+              <p className="t-body" style={{ margin: 0, fontSize: 13.5 }}>
                 {r.why}
               </p>
-              <span className="flex-1" />
-              <Link
-                href="/suggestions"
-                className="uppercase"
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  letterSpacing: ".16em",
-                  paddingTop: 16,
-                  borderTop: "1px solid var(--border)",
-                }}
-              >
-                View game →
-              </Link>
-            </div>
-          </div>
-        ))}
-      </div>
+            </article>
+          ))}
+        </Grid>
+      </section>
 
       <div
-        data-cols2
-        className="grid"
-        style={{ gridTemplateColumns: "minmax(0,1.4fr) minmax(0,.9fr)", gap: 36 }}
+        data-split
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          gap: 28,
+        }}
       >
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>Rediscover</h2>
-          {rediscover.length === 0 ? (
-            <p style={{ fontSize: 14, color: "var(--text-3)" }}>Sync a platform to fill this in.</p>
+        <section>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            Latest unlocks
+          </h2>
+          {recent.length === 0 ? (
+            <p className="t-sm">Achievements appear here after your first full sync.</p>
           ) : (
-            <div className="grid" style={{ gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 14 }}>
-              {rediscover.map((g) => (
-                <div key={g.id} className="card" style={{ borderRadius: 12, overflow: "hidden" }}>
-                  <GameArt src={g.cover_url} name={g.name}>
-                    <span className="absolute" style={{ top: 10, left: 10, zIndex: 2 }}>
-                      <span
-                        className="uppercase"
-                        style={{
-                          fontSize: 9.5,
-                          fontWeight: 700,
-                          letterSpacing: ".14em",
-                          background: "rgba(0,0,0,.6)",
-                          border: "1px solid rgba(255,255,255,.12)",
-                          borderRadius: 5,
-                          padding: "3px 7px",
-                          color: "rgba(245,246,247,.7)",
-                        }}
-                      >
-                        {PLATFORM_META[g.platform as Platform].label}
-                      </span>
+            <div className="stack" style={{ gap: 10 }}>
+              {recent.map((a) => {
+                const tier = rarityTier(a.rarity_pct);
+                return (
+                  <div
+                    key={a.id}
+                    className="card flex items-center"
+                    style={{ gap: 13, padding: "12px 14px" }}
+                  >
+                    <Avatar src={a.icon_url} size={38} radius={8} name={a.name} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="truncate-1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                        {a.name}
+                      </div>
+                      <div className="truncate-1 t-sm" style={{ fontSize: 12 }}>
+                        {a.game_name} · {timeAgo(a.unlocked_at)}
+                      </div>
+                    </div>
+                    <span className="badge" style={{ color: tier.color, borderColor: tier.border }}>
+                      {a.rarity_pct != null ? `${a.rarity_pct.toFixed(1)}%` : tier.label}
                     </span>
-                  </GameArt>
-                  <div style={{ padding: "11px 12px", fontSize: 11.5, color: "var(--text-4)" }}>
-                    Last played {timeAgo(g.last_played_at)}
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            Friends
+          </h2>
+          {friends.length === 0 ? (
+            <div className="card" style={{ padding: 20 }}>
+              <p className="t-sm" style={{ margin: "0 0 14px" }}>
+                Add someone by their TRACE username to compare libraries and ratings.
+              </p>
+              <Link href="/friends" className="btn btn-secondary btn-sm">
+                Find friends
+              </Link>
+            </div>
+          ) : (
+            <div className="stack" style={{ gap: 10 }}>
+              {friends.slice(0, 4).map((f) => (
+                <Link
+                  key={f.id}
+                  href={`/u/${f.username}`}
+                  className="card card-hover flex items-center"
+                  style={{ gap: 12, padding: "12px 14px", color: "var(--text)" }}
+                >
+                  <Avatar size={36} radius={8} name={f.display_name} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="truncate-1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                      {f.display_name}
+                    </div>
+                    <div className="truncate-1 t-sm" style={{ fontSize: 12 }}>
+                      {f.playing ? f.playing : "No activity yet"}
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
-        </div>
-
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>
-            {friends.length > 0 ? "Friend activity" : "Latest achievements"}
-          </h2>
-          <div className="flex flex-col gap-3">
-            {friends.length > 0
-              ? friends.slice(0, 3).map((f) => (
-                  <Link
-                    key={f.id}
-                    href={`/u/${f.username}`}
-                    className="card flex items-center gap-[13px]"
-                    style={{ borderRadius: 12, padding: "13px 16px", color: "var(--text)" }}
-                  >
-                    <Avatar size={40} radius={8} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-display font-bold" style={{ fontSize: 14.5, letterSpacing: ".05em" }}>
-                        {f.display_name.toUpperCase()}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12.5,
-                          color: "var(--accent)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {f.playing ? `Last played ${f.playing}` : "No activity yet"}
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              : recent.length === 0
-                ? <p style={{ fontSize: 14, color: "var(--text-3)" }}>Sync to see achievements land here.</p>
-                : recent.map((a) => {
-                    const tier = rarityTier(a.rarity_pct);
-                    return (
-                      <div key={a.id} className="card flex items-center gap-[13px]" style={{ borderRadius: 12, padding: "13px 16px" }}>
-                        <Avatar src={a.icon_url} size={40} radius={8} />
-                        <div className="flex-1 min-w-0">
-                          <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {a.name}
-                          </div>
-                          <div style={{ fontSize: 12, color: "var(--text-4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {a.game_name} · {timeAgo(a.unlocked_at)}
-                          </div>
-                        </div>
-                        <span
-                          className={tier.className}
-                          style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 5, padding: "3px 7px", flex: "none" }}
-                        >
-                          {a.rarity_pct != null ? `${a.rarity_pct.toFixed(1)}%` : tier.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-          </div>
-          {friends.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <RatingBadge value={summary.rating} delta={summary.ratingDelta} />
-            </div>
-          )}
-        </div>
+        </section>
       </div>
-    </div>
+    </>
   );
 }

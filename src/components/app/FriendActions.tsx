@@ -9,9 +9,10 @@ export function AddFriend() {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  async function submit() {
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
     setBusy(true);
     setNote(null);
     try {
@@ -22,11 +23,11 @@ export function AddFriend() {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Could not send that request.");
-      setNote("Request sent.");
+      setNote({ ok: true, text: "Request sent." });
       setUsername("");
       router.refresh();
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "Could not send that request.");
+      setNote({ ok: false, text: err instanceof Error ? err.message : "Could not send that request." });
     } finally {
       setBusy(false);
     }
@@ -34,61 +35,66 @@ export function AddFriend() {
 
   if (!open) {
     return (
-      <button className="btn-primary" onClick={() => setOpen(true)}>
-        <Icon name="plus" size={15} />
+      <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>
+        <Icon name="plus" size={14} />
         Add a friend
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2" style={{ minWidth: 300 }}>
-      <div className="flex gap-2">
+    <form onSubmit={submit} className="stack" style={{ gap: 8, minWidth: 280 }}>
+      <div className="flex" style={{ gap: 8 }}>
         <div className="field" style={{ flex: 1 }}>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Their Trace username"
+            placeholder="Their TRACE username"
+            aria-label="Friend's username"
             autoFocus
           />
         </div>
-        <button className="btn-primary" onClick={submit} disabled={busy || username.trim().length < 3}>
-          {busy ? "…" : "Send"}
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy || username.trim().length < 3}>
+          {busy ? "Sending" : "Send"}
         </button>
       </div>
-      {note && <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{note}</span>}
-    </div>
+      {note && (
+        <span style={{ fontSize: 12.5, color: note.ok ? "var(--ok)" : "var(--bad)" }}>
+          {note.text}
+        </span>
+      )}
+    </form>
   );
 }
 
 export function RequestActions({ friendshipId }: { friendshipId: string }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   async function respond(action: "accept" | "ignore") {
-    setBusy(true);
+    setBusy(action);
     await fetch(`/api/friends/${friendshipId}`, {
       method: action === "accept" ? "PATCH" : "DELETE",
     });
-    setBusy(false);
+    setBusy(null);
     router.refresh();
   }
 
   return (
-    <div className="flex gap-[9px]">
+    <div className="flex" style={{ gap: 8 }}>
       <button
-        className="btn-primary"
-        style={{ flex: 1, minHeight: 38, fontSize: 13 }}
+        className="btn btn-primary btn-sm"
+        style={{ flex: 1 }}
         onClick={() => respond("accept")}
-        disabled={busy}
+        disabled={busy !== null}
       >
-        Accept
+        {busy === "accept" ? "Accepting" : "Accept"}
       </button>
       <button
-        className="btn-ghost"
-        style={{ flex: 1, minHeight: 38 }}
+        className="btn btn-quiet btn-sm"
+        style={{ flex: 1 }}
         onClick={() => respond("ignore")}
-        disabled={busy}
+        disabled={busy !== null}
       >
         Ignore
       </button>

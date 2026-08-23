@@ -24,7 +24,7 @@ export async function fetchXboxProfile(apiKey: string): Promise<XboxProfile> {
     profileUsers?: { id: string; settings: XblSetting[] }[];
   }>(`${BASE}/account`, { headers: headers(apiKey) });
   const user = data.profileUsers?.[0];
-  if (!user) throw new Error("OpenXBL returned no account — check the API key.");
+  if (!user) throw new Error("OpenXBL returned no account. Check the API key.");
   const get = (id: string) => user.settings.find((s) => s.id === id)?.value ?? null;
   return {
     xuid: user.id,

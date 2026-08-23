@@ -15,46 +15,84 @@ export interface LibraryRow {
   last_played_at: string | null;
 }
 
+export type LibrarySort = "playtime" | "recent" | "name" | "completion";
+
+export interface LibraryFilter {
+  /** A platform key, "all", or "unplayed". */
+  platform?: string;
+  search?: string;
+  sort?: string;
+  limit?: number;
+}
+
+const SORTS: Record<LibrarySort, string> = {
+  playtime: "ug.playtime_minutes desc, g.name asc",
+  recent: "ug.last_played_at desc nulls last, ug.playtime_minutes desc",
+  name: "g.name asc",
+  completion: "ug.completion_pct desc, ug.playtime_minutes desc",
+};
+
+export function normaliseSort(value: string | undefined): LibrarySort {
+  return value && value in SORTS ? (value as LibrarySort) : "playtime";
+}
+
 export async function getLibrary(
   userId: string,
-  opts: { platform?: string; search?: string; limit?: number; sort?: string } = {}
+  opts: LibraryFilter = {}
 ): Promise<LibraryRow[]> {
   const params: unknown[] = [userId];
-  let where = "ug.user_id = $1";
+  const where: string[] = ["ug.user_id = $1"];
 
-  if (opts.platform && opts.platform !== "all") {
-    params.push(opts.platform);
-    where += ` and g.platform = $${params.length}`;
-  }
-  if (opts.search) {
-    params.push(`%${opts.search.toLowerCase()}%`);
-    where += ` and lower(g.name) like $${params.length}`;
-  }
-  if (opts.platform === "unplayed") {
-    where = where.replace(" and g.platform = $2", "") + " and ug.playtime_minutes = 0";
+  const platform = opts.platform ?? "all";
+  if (platform === "unplayed") {
+    where.push("ug.playtime_minutes = 0");
+  } else if (platform !== "all") {
+    params.push(platform);
+    where.push(`g.platform = $${params.length}`);
   }
 
-  const order =
-    opts.sort === "name"
-      ? "g.name asc"
-      : opts.sort === "completion"
-        ? "ug.completion_pct desc, ug.playtime_minutes desc"
-        : opts.sort === "recent"
-          ? "ug.last_played_at desc nulls last"
-          : "ug.playtime_minutes desc";
+  const search = opts.search?.trim();
+  if (search) {
+    params.push(`%${search.toLowerCase()}%`);
+    where.push(`lower(g.name) like $${params.length}`);
+  }
 
-  params.push(opts.limit ?? 500);
+  params.push(opts.limit ?? 400);
 
   return query<LibraryRow>(
     `select g.id, g.name, g.platform, g.cover_url, g.icon_url,
             ug.playtime_minutes, ug.completion_pct::float8 as completion_pct,
             ug.achievements_earned, ug.achievements_total, ug.last_played_at::text
        from user_games ug join games g on g.id = ug.game_id
-      where ${where}
-      order by ${order}
+      where ${where.join(" and ")}
+      order by ${SORTS[normaliseSort(opts.sort)]}
       limit $${params.length}`,
     params
   );
+}
+
+/** Total rows matching a filter, so the UI can show an honest count. */
+export async function countLibrary(userId: string, opts: LibraryFilter = {}): Promise<number> {
+  const params: unknown[] = [userId];
+  const where: string[] = ["ug.user_id = $1"];
+  const platform = opts.platform ?? "all";
+  if (platform === "unplayed") {
+    where.push("ug.playtime_minutes = 0");
+  } else if (platform !== "all") {
+    params.push(platform);
+    where.push(`g.platform = $${params.length}`);
+  }
+  const search = opts.search?.trim();
+  if (search) {
+    params.push(`%${search.toLowerCase()}%`);
+    where.push(`lower(g.name) like $${params.length}`);
+  }
+  const row = await one<{ n: string }>(
+    `select count(*)::text as n from user_games ug join games g on g.id = ug.game_id
+      where ${where.join(" and ")}`,
+    params
+  );
+  return Number(row?.n ?? 0);
 }
 
 export interface AchievementRow {
@@ -129,8 +167,9 @@ export async function getUserByUsername(username: string) {
     avatar_url: string | null;
     bio: string | null;
     is_public: boolean;
+    show_playtime: boolean;
   }>(
-    `select id, username, display_name, avatar_url, bio, is_public
+    `select id, username, display_name, avatar_url, bio, is_public, show_playtime
        from users where lower(username) = lower($1)`,
     [username]
   );

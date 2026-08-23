@@ -31,14 +31,41 @@ export function timeAgo(input: string | Date | null | undefined): string {
   return `${Math.round(months / 12)}y ago`;
 }
 
-export function rarityTier(pct: number | null | undefined): {
+export interface RarityTier {
   label: string;
-  className: string;
-} {
-  if (pct == null) return { label: "Unknown", className: "text-zinc-400 bg-zinc-500/10" };
-  if (pct < 1) return { label: "Mythic", className: "text-fuchsia-300 bg-fuchsia-500/10" };
-  if (pct < 5) return { label: "Ultra rare", className: "text-amber-300 bg-amber-500/10" };
-  if (pct < 15) return { label: "Rare", className: "text-sky-300 bg-sky-500/10" };
-  if (pct < 40) return { label: "Uncommon", className: "text-emerald-300 bg-emerald-500/10" };
-  return { label: "Common", className: "text-zinc-300 bg-zinc-500/10" };
+  color: string;
+  border: string;
+}
+
+/** Achievement rarity, banded by the share of players who hold it. */
+export function rarityTier(pct: number | null | undefined): RarityTier {
+  if (pct == null) return { label: "Unrated", color: "var(--text-4)", border: "var(--line-2)" };
+  if (pct < 1) return { label: "Mythic", color: "#e6a8ff", border: "rgba(230,168,255,0.32)" };
+  if (pct < 5) return { label: "Ultra rare", color: "#ffc86b", border: "rgba(255,200,107,0.32)" };
+  if (pct < 15) return { label: "Rare", color: "#6fa4ff", border: "rgba(111,164,255,0.32)" };
+  if (pct < 40) return { label: "Uncommon", color: "#3ecf8e", border: "rgba(62,207,142,0.3)" };
+  return { label: "Common", color: "var(--text-3)", border: "var(--line-2)" };
+}
+
+/** Compact "3 of 12" style progress label. */
+export function ofLabel(done: number, total: number): string {
+  return `${done.toLocaleString()} of ${total.toLocaleString()}`;
+}
+
+/** Time left until a future instant, for deadlines and expiries. */
+export function timeUntil(input: string | Date | null | undefined): string {
+  if (!input) return "no deadline";
+  const ms = new Date(input).getTime() - Date.now();
+  if (Number.isNaN(ms)) return "unknown";
+  if (ms <= 0) return "expired";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m left`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) {
+    const rem = mins % 60;
+    return rem > 0 ? `${hours}h ${rem}m left` : `${hours}h left`;
+  }
+  const days = Math.floor(hours / 24);
+  const remH = hours % 24;
+  return remH > 0 ? `${days}d ${remH}h left` : `${days}d left`;
 }

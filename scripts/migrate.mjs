@@ -13,9 +13,14 @@ if (!connectionString) {
   process.exit(1);
 }
 
+function needsSsl(url) {
+  if (/sslmode=disable/.test(url)) return false;
+  return !/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
+}
+
 const client = new pg.Client({
   connectionString,
-  ssl: connectionString.includes("localhost") ? undefined : { rejectUnauthorized: false },
+  ssl: needsSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
 });
 
 try {

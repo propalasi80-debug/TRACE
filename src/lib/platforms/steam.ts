@@ -28,7 +28,7 @@ export async function fetchSteamProfile(steamId: string): Promise<SteamProfile> 
     };
   }>(`${API}/ISteamUser/GetPlayerSummaries/v2/?key=${key()}&steamids=${steamId}`);
   const p = data.response.players[0];
-  if (!p) throw new Error("Steam profile not found — is the profile public?");
+  if (!p) throw new Error("Steam profile not found. Check that the profile is set to public.");
   return {
     steamId: p.steamid,
     personaName: p.personaname,

@@ -164,7 +164,7 @@ create table if not exists user_badges (
 -- Trace connects to Postgres directly as the owner role, which bypasses RLS.
 -- But if this database is hosted on Supabase, every table in the public schema
 -- is also reachable through Supabase's REST API using the publishable anon key
--- — which is public by design. Enabling RLS with no policies denies that path
+-- and that key is public by design. Enabling RLS with no policies denies that path
 -- entirely while leaving the app's own direct connection untouched.
 -- ---------------------------------------------------------------
 do $$
@@ -182,7 +182,7 @@ end $$;
 
 -- The app's connection must be able to bypass RLS. Supabase's `postgres` role
 -- and any table owner already can, EXCEPT under `force row level security`,
--- which applies to owners too — so grant the owner an explicit allow-all policy.
+-- which applies to owners too, so grant the owner an explicit allow-all policy.
 do $$
 declare t text;
 begin
@@ -201,3 +201,9 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---------------------------------------------------------------
+-- Privacy preferences (added after the first release)
+-- ---------------------------------------------------------------
+alter table users add column if not exists show_playtime   boolean not null default true;
+alter table users add column if not exists share_activity  boolean not null default true;

@@ -7,7 +7,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Vercel Cron hits this. Syncs the accounts that have gone stalest. */
+/** Vercel Cron hits this daily. Syncs the accounts that have gone stalest.
+ *  Hobby plans allow one run per day; raise the schedule in vercel.json on Pro. */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization");

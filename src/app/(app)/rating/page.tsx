@@ -1,122 +1,260 @@
 import { requireUser } from "@/lib/auth";
 import { getAttributes, getUserSummary } from "@/lib/stats";
-import { getLibrary } from "@/lib/queries";
-import { IdentityCard } from "@/components/app/IdentityCard";
-import { PageHeading, Progress, EmptyState } from "@/components/app/ui";
+import { getLibrary, getPlatformBreakdown } from "@/lib/queries";
+import { PageHead, Meter, Empty, Grid, Stat } from "@/components/app/ui";
+import { PlatformMark } from "@/components/PlatformMark";
 import { formatHours } from "@/lib/utils";
+import type { Platform } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Gamer Rating · Trace" };
+export const metadata = { title: "Rating" };
+
+/** Semicircular gauge, drawn from the real 120 to 1000 range. */
+function Gauge({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(1, (value - 120) / 880));
+  const r = 104;
+  const cx = 128;
+  const cy = 128;
+  const angle = Math.PI * (1 - pct);
+  const x = cx + r * Math.cos(angle);
+  const y = cy - r * Math.sin(angle);
+
+  return (
+    <svg viewBox="0 0 256 148" width="100%" style={{ maxWidth: 256 }} aria-hidden="true">
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+        fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 export default async function RatingPage() {
   const user = await requireUser();
-  const [summary, attributes, top] = await Promise.all([
+  const [summary, attributes, top, breakdown] = await Promise.all([
     getUserSummary(user.id),
     getAttributes(user.id),
     getLibrary(user.id, { limit: 5 }),
+    getPlatformBreakdown(user.id),
   ]);
-
-  // Arc geometry: 110px radius semicircle from (20,138) to (240,138).
-  const pct = Math.max(0, Math.min(1, (summary.rating - 120) / 880));
-  const angle = Math.PI * (1 - pct);
-  const x = 130 + 110 * Math.cos(angle);
-  const y = 138 - 110 * Math.sin(angle);
-  const largeArc = pct > 0.5 ? 1 : 0;
 
   if (summary.games === 0) {
     return (
-      <div>
-        <PageHeading
-          title="Gamer Rating"
-          subtitle="Your Trace Rating is built from your gameplay across all connected platforms."
+      <>
+        <PageHead
+          title="Rating"
+          subtitle="Built from real playtime, completion and achievement rarity across every connected account."
         />
-        <EmptyState
+        <Empty
           title="No rating yet"
-          body="The rating is computed from real playtime, completion and achievement rarity. Connect a platform and sync to generate it."
-          cta={{ href: "/settings", label: "Connect a platform" }}
+          body="There is nothing to measure until a platform has synced. The rating is computed, never estimated, so it stays blank until it has data."
+          cta={{ href: "/settings", label: "Connect an account" }}
         />
-      </div>
+      </>
     );
   }
 
+  const ranked = [...attributes].sort((a, b) => b.value - a.value);
+
   return (
-    <div>
-      <PageHeading
-        title="Gamer Rating"
-        subtitle="Your Trace Rating is built from your gameplay across all connected platforms."
+    <>
+      <PageHead
+        title="Rating"
+        subtitle="Built from real playtime, completion and achievement rarity across every connected account."
       />
 
       <div
-        data-cols2
-        className="grid"
-        style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 20, marginBottom: 42 }}
+        data-split
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+          gap: 16,
+          marginBottom: 36,
+        }}
       >
-        <IdentityCard
-          displayName={user.display_name}
-          avatarUrl={user.avatar_url}
-          summary={summary}
-          avatarSize={76}
-          favourites={top.map((g) => g.name).slice(0, 5)}
-        />
-
-        <div
-          className="card flex flex-col items-center justify-center text-center"
-          style={{ padding: 30 }}
+        <section
+          className="card"
+          style={{
+            padding: 28,
+            display: "grid",
+            placeItems: "center",
+            textAlign: "center",
+          }}
         >
-          <svg width="260" height="150" viewBox="0 0 260 150" aria-hidden="true">
-            <path
-              d="M20 138 A110 110 0 0 1 240 138"
-              fill="none"
-              stroke="rgba(255,255,255,.08)"
-              strokeWidth="7"
-              strokeLinecap="round"
-            />
-            <path
-              d={`M20 138 A110 110 0 ${largeArc} 1 ${x.toFixed(1)} ${y.toFixed(1)}`}
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="7"
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="tnum" style={{ fontSize: 48, fontWeight: 700, letterSpacing: "-.02em", marginTop: -46 }}>
+          <Gauge value={summary.rating} />
+          <div className="t-num" style={{ fontSize: 46, marginTop: -34 }}>
             {summary.rating}
           </div>
-          <div className="eyebrow" style={{ letterSpacing: ".22em", margin: "6px 0 20px" }}>
-            Trace Rating
+          <div className="t-label" style={{ marginTop: 8 }}>
+            out of 1000
           </div>
-          <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text-2)", margin: 0, maxWidth: "40ch" }}>
-            Your rating places you in the top{" "}
-            <strong style={{ color: "var(--accent)" }}>{summary.percentile}%</strong> of Trace players.
-            Built from {summary.games.toLocaleString()} games, {formatHours(summary.minutes)} played and{" "}
+          <p className="t-body" style={{ margin: "18px 0 0", maxWidth: "38ch" }}>
+            You sit in the top {summary.percentile}% of TRACE players, from{" "}
+            {summary.games.toLocaleString()} games, {formatHours(summary.minutes)} played and{" "}
             {summary.achievementsEarned.toLocaleString()} achievements.
           </p>
-        </div>
+        </section>
+
+        <section className="card" style={{ padding: 24 }}>
+          <h2 className="t-label" style={{ marginBottom: 18 }}>
+            What feeds it
+          </h2>
+          <div className="stack" style={{ gap: 14 }}>
+            {[
+              { label: "Depth of play", weight: "26%", note: "Total hours across every platform" },
+              { label: "Completion", weight: "24%", note: "Achievements earned against available" },
+              { label: "Breadth", weight: "22%", note: "How many games you own and started" },
+              { label: "Rarity", weight: "20%", note: "Achievements held by under 10% of players" },
+              { label: "Reach", weight: "8%", note: "Platforms connected" },
+            ].map((row) => (
+              <div
+                key={row.label}
+                className="flex items-start justify-between"
+                style={{ gap: 16, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{row.label}</div>
+                  <div className="t-sm" style={{ fontSize: 12 }}>
+                    {row.note}
+                  </div>
+                </div>
+                <span className="t-num" style={{ fontSize: 14, color: "var(--accent-text)" }}>
+                  {row.weight}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 10,
+              marginTop: 18,
+            }}
+          >
+            <Stat value={summary.games.toLocaleString()} label="Games" />
+            <Stat value={formatHours(summary.minutes)} label="Hours" />
+            <Stat value={summary.achievementsEarned.toLocaleString()} label="Unlocks" />
+          </div>
+        </section>
       </div>
 
-      <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 18px" }}>Trace Attributes</h2>
-      <div
-        data-cols3
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 18 }}
-      >
-        {attributes.map((a) => (
-          <div key={a.name} className="card" style={{ borderRadius: 12, padding: 20 }}>
-            <div className="flex justify-between items-baseline" style={{ marginBottom: 12 }}>
-              <span className="uppercase" style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".14em" }}>
-                {a.name}
-              </span>
-              <span className="tnum" style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)" }}>
-                {a.value}
-              </span>
+      {breakdown.length > 1 && (
+        <section style={{ marginBottom: 36 }}>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            By platform
+          </h2>
+          <Grid cols={3} gap={14}>
+            {breakdown.map((b) => (
+              <div key={b.platform} className="card" style={{ padding: 20 }}>
+                <div className="flex items-center" style={{ gap: 10, marginBottom: 14 }}>
+                  <PlatformMark platform={b.platform as Platform} size={16} />
+                  <span className="t-h3" style={{ fontSize: 14 }}>
+                    {b.platform === "psn" ? "PlayStation" : b.platform === "xbox" ? "Xbox" : "Steam"}
+                  </span>
+                </div>
+                <div className="flex" style={{ gap: 22 }}>
+                  <div>
+                    <div className="t-num" style={{ fontSize: 19 }}>
+                      {b.games.toLocaleString()}
+                    </div>
+                    <div className="t-label" style={{ fontSize: 9.5, marginTop: 4 }}>
+                      Games
+                    </div>
+                  </div>
+                  <div>
+                    <div className="t-num" style={{ fontSize: 19 }}>
+                      {formatHours(b.minutes)}
+                    </div>
+                    <div className="t-label" style={{ fontSize: 9.5, marginTop: 4 }}>
+                      Hours
+                    </div>
+                  </div>
+                  <div>
+                    <div className="t-num" style={{ fontSize: 19 }}>
+                      {b.earned.toLocaleString()}
+                    </div>
+                    <div className="t-label" style={{ fontSize: 9.5, marginTop: 4 }}>
+                      Unlocks
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Grid>
+        </section>
+      )}
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 className="t-h2" style={{ marginBottom: 16 }}>
+          Attributes
+        </h2>
+        <Grid cols={3} gap={14}>
+          {ranked.map((a) => (
+            <div key={a.name} className="card" style={{ padding: 20 }}>
+              <div className="flex items-baseline justify-between" style={{ marginBottom: 12 }}>
+                <span className="t-label" style={{ color: "var(--text-2)" }}>
+                  {a.name}
+                </span>
+                <span className="t-num" style={{ fontSize: 18, color: "var(--accent-text)" }}>
+                  {a.value}
+                </span>
+              </div>
+              <Meter pct={a.value} />
+              <p className="t-sm" style={{ margin: "14px 0 0", fontSize: 12.5 }}>
+                {a.note}
+              </p>
             </div>
-            <div style={{ marginBottom: 14 }}>
-              <Progress pct={a.value} />
-            </div>
-            <p style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-3)", margin: 0 }}>{a.note}</p>
+          ))}
+        </Grid>
+      </section>
+
+      {top.length > 0 && (
+        <section>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            Biggest contributors
+          </h2>
+          <div className="stack" style={{ gap: 10 }}>
+            {top.map((g) => (
+              <div
+                key={g.id}
+                className="card flex items-center"
+                style={{ gap: 14, padding: "14px 18px" }}
+              >
+                <PlatformMark platform={g.platform as Platform} size={16} />
+                <span className="truncate-1" style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>
+                  {g.name}
+                </span>
+                <span className="t-num" style={{ fontSize: 13, color: "var(--text-3)" }}>
+                  {formatHours(g.playtime_minutes)}
+                </span>
+                <span
+                  className="t-num"
+                  style={{
+                    fontSize: 13,
+                    color: g.achievements_total > 0 ? "var(--accent-text)" : "var(--text-5)",
+                    minWidth: 52,
+                    textAlign: "right",
+                  }}
+                >
+                  {g.achievements_total > 0 ? `${Math.round(g.completion_pct)}%` : "n/a"}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
+        </section>
+      )}
+    </>
   );
 }

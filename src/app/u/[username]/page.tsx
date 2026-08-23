@@ -1,18 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { getUserByUsername, getLibrary } from "@/lib/queries";
 import { getAttributes, getUserSummary } from "@/lib/stats";
 import { ProfileView } from "@/components/app/ProfileView";
 import { getCurrentUser } from "@/lib/auth";
 import { baseUrl } from "@/lib/base-url";
 import { Logo } from "@/components/Logo";
+import { Topology } from "@/components/landing/Topology";
+import { Empty } from "@/components/app/ui";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
   const user = await getUserByUsername(username).catch(() => null);
-  return { title: user ? `${user.display_name} · Trace` : "Player not found · Trace" };
+  if (!user || !user.is_public) return { title: "Profile" };
+  return {
+    title: user.display_name,
+    description: user.bio ?? `${user.display_name} on TRACE.`,
+  };
 }
 
 export default async function PublicProfilePage({
@@ -29,15 +36,11 @@ export default async function PublicProfilePage({
 
   if (!profile.is_public && !isOwner) {
     return (
-      <Shell>
-        <div className="card text-center" style={{ padding: "52px 30px" }}>
-          <div className="font-display font-bold uppercase" style={{ fontSize: 20, letterSpacing: ".08em", marginBottom: 10 }}>
-            This profile is private
-          </div>
-          <p style={{ fontSize: 14, color: "var(--text-3)", margin: 0 }}>
-            {profile.display_name} has turned off public sharing.
-          </p>
-        </div>
+      <Shell viewer={Boolean(viewer)}>
+        <Empty
+          title="This profile is private"
+          body={`${profile.display_name} has turned off public sharing.`}
+        />
       </Shell>
     );
   }
@@ -45,12 +48,12 @@ export default async function PublicProfilePage({
   const [summary, attributes, topGames, base] = await Promise.all([
     getUserSummary(profile.id),
     getAttributes(profile.id),
-    getLibrary(profile.id, { limit: 5 }),
+    getLibrary(profile.id, { limit: 6 }),
     baseUrl(),
   ]);
 
   return (
-    <Shell>
+    <Shell viewer={Boolean(viewer)}>
       <ProfileView
         user={profile}
         summary={summary}
@@ -58,29 +61,44 @@ export default async function PublicProfilePage({
         topGames={topGames}
         shareUrl={`${base}/u/${profile.username}`}
         owner={Boolean(isOwner)}
+        showPlaytime={profile.show_playtime}
       />
     </Shell>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, viewer }: { children: ReactNode; viewer: boolean }) {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div
+    <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+      <Topology variant="app" />
+      <header
         className="flex items-center"
         style={{
-          height: 66,
-          padding: "0 40px",
-          borderBottom: "1px solid rgba(255,255,255,.06)",
+          position: "relative",
+          zIndex: 1,
+          height: 64,
+          padding: "0 var(--shell-pad-x)",
+          borderBottom: "1px solid var(--line)",
+          gap: 16,
         }}
       >
-        <Logo />
-        <div className="flex-1" />
-        <Link href="/signup" style={{ fontSize: 13.5, fontWeight: 600 }}>
-          Create your own →
+        <Logo height={19} />
+        <span style={{ flex: 1 }} />
+        <Link href={viewer ? "/home" : "/signup"} className="btn btn-sm btn-secondary">
+          {viewer ? "Your dashboard" : "Create your own"}
         </Link>
+      </header>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          padding: "32px var(--shell-pad-x) 72px",
+          maxWidth: 1080,
+          margin: "0 auto",
+        }}
+      >
+        {children}
       </div>
-      <div style={{ padding: "36px 44px 64px", maxWidth: 1200, margin: "0 auto" }}>{children}</div>
     </div>
   );
 }

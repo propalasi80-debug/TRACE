@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { one, query } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/crypto";
 import { createSession, destroySession, uniqueUsername } from "@/lib/auth";
@@ -22,7 +23,7 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
 
   try {
     const existing = await one(`select 1 from users where lower(email) = $1`, [email]);
-    if (existing) return { error: "That email is already registered. Try logging in." };
+    if (existing) return { error: "That email is already registered. Try logging in instead." };
 
     const username = await uniqueUsername(displayName || email.split("@")[0]);
     const user = await one<{ id: string }>(
@@ -73,13 +74,25 @@ export async function updateProfileAction(
     const user = await requireUser();
     const displayName = String(formData.get("display_name") ?? "").trim();
     const bio = String(formData.get("bio") ?? "").trim();
-    const isPublic = formData.get("is_public") === "on";
     await query(
       `update users set display_name = coalesce(nullif($2,''), display_name),
-                        bio = nullif($3,''), is_public = $4, updated_at = now()
+                        bio = nullif($3,''),
+                        is_public = $4,
+                        show_playtime = $5,
+                        share_activity = $6,
+                        updated_at = now()
         where id = $1`,
-      [user.id, displayName, bio, isPublic]
+      [
+        user.id,
+        displayName,
+        bio,
+        formData.get("is_public") === "on",
+        formData.get("show_playtime") === "on",
+        formData.get("share_activity") === "on",
+      ]
     );
+    revalidatePath("/settings");
+    revalidatePath("/profile");
     return { ok: true };
   } catch (err) {
     return { error: friendly(err) };
@@ -89,10 +102,10 @@ export async function updateProfileAction(
 function friendly(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("DATABASE_URL")) {
-    return "The database isn't configured yet. Add DATABASE_URL and run the migration.";
+    return "The database is not configured yet. Set DATABASE_URL and run the migration.";
   }
   if (msg.includes('relation "users" does not exist')) {
-    return "The database tables haven't been created yet. Run the migration first.";
+    return "The database tables do not exist yet. Run the migration first.";
   }
   return msg.slice(0, 200);
 }

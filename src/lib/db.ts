@@ -1,5 +1,11 @@
 import { Pool, type QueryResultRow } from "pg";
 
+/** Hosted Postgres needs TLS; a local server usually has none configured. */
+function needsSsl(url: string): boolean {
+  if (/sslmode=disable/.test(url)) return false;
+  return !/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
+}
+
 declare global {
   var __gvPool: Pool | undefined;
 }
@@ -16,7 +22,7 @@ function makePool() {
   }
   return new Pool({
     connectionString,
-    ssl: connectionString.includes("localhost") ? undefined : { rejectUnauthorized: false },
+    ssl: needsSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
     max: 5,
     idleTimeoutMillis: 10_000,
   });

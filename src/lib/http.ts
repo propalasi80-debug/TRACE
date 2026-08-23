@@ -14,7 +14,7 @@ export async function getJson<T>(
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}${body ? ` — ${body.slice(0, 200)}` : ""}`);
+      throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}${body ? `: ${body.slice(0, 200)}` : ""}`);
     }
     return (await res.json()) as T;
   } finally {

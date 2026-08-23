@@ -3,41 +3,55 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
+import { PlatformMark } from "@/components/PlatformMark";
+import { Notice } from "@/components/app/ui";
+import { MARQUEE_ORDER, PLATFORM_BRANDS } from "@/lib/platforms/registry";
 import { PLATFORM_META, type Platform, type PlatformAccountRow } from "@/lib/types";
 import { timeAgo } from "@/lib/utils";
 
-const HELP: Record<Platform, { how: string; link?: { href: string; label: string } }> = {
-  steam: {
-    how: "Sign in through Steam — Trace never sees your password. Your profile and game details must be set to Public for the library to come through.",
-    link: { href: "https://steamcommunity.com/my/edit/settings", label: "Steam privacy settings" },
-  },
+const HELP: Record<
+  Exclude<Platform, "steam">,
+  { intro: string; steps: string[]; link: { href: string; label: string }; placeholder: string }
+> = {
   psn: {
-    how: "Log in to the PlayStation site, then open the SSO endpoint below and copy the npsso value it returns. It expires roughly every two months.",
-    link: { href: "https://ca.account.sony.com/api/v1/ssocookie", label: "Get your NPSSO token" },
+    intro: "PlayStation has no public API, so TRACE uses your own session token.",
+    steps: [
+      "Log in at playstation.com in this browser.",
+      "Open the link below. It returns a small piece of JSON.",
+      "Copy the value of npsso and paste it here.",
+    ],
+    link: {
+      href: "https://ca.account.sony.com/api/v1/ssocookie",
+      label: "Get your NPSSO token",
+    },
+    placeholder: "Paste your NPSSO token",
   },
   xbox: {
-    how: "Xbox has no public API, so Trace uses OpenXBL. Sign in there with your Microsoft account and paste the API key it gives you — the free tier is enough.",
+    intro: "Xbox has no public API either, so TRACE reads through OpenXBL.",
+    steps: [
+      "Sign in at xbl.io with your Microsoft account.",
+      "Copy the API key it shows you. The free tier is enough.",
+      "Paste it here.",
+    ],
     link: { href: "https://xbl.io/", label: "Get an OpenXBL key" },
+    placeholder: "Paste your OpenXBL API key",
   },
 };
 
-interface Props {
-  accounts: PlatformAccountRow[];
-}
-
-export function Connections({ accounts }: Props) {
+export function Connections({ accounts }: { accounts: PlatformAccountRow[] }) {
   const router = useRouter();
   const byPlatform = new Map(accounts.map((a) => [a.platform, a]));
+
   const [open, setOpen] = useState<Platform | null>(null);
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [note, setNote] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
   const [, startTransition] = useTransition();
 
   const refresh = () => startTransition(() => router.refresh());
 
-  async function connect(platform: Platform) {
-    setBusy(`connect-${platform}`);
+  async function link(platform: Exclude<Platform, "steam">) {
+    setBusy(`link-${platform}`);
     setNote(null);
     try {
       const body = platform === "psn" ? { npsso: secret.trim() } : { apiKey: secret.trim() };
@@ -47,28 +61,32 @@ export function Connections({ accounts }: Props) {
         body: JSON.stringify(body),
       });
       const data = (await res.json()) as { error?: string; handle?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not connect.");
+      if (!res.ok) throw new Error(data.error ?? "Could not connect that account.");
       setNote({ kind: "ok", text: `Connected as ${data.handle}. Run a sync to pull your library.` });
       setSecret("");
       setOpen(null);
       refresh();
     } catch (err) {
-      setNote({ kind: "err", text: err instanceof Error ? err.message : "Could not connect." });
+      setNote({ kind: "bad", text: err instanceof Error ? err.message : "Could not connect." });
     } finally {
       setBusy(null);
     }
   }
 
   async function disconnect(platform: Platform) {
-    setBusy(`dc-${platform}`);
+    const label = PLATFORM_META[platform].label;
+    if (!window.confirm(`Disconnect ${label}? Games and achievements from it will be removed.`)) {
+      return;
+    }
+    setBusy(`off-${platform}`);
     setNote(null);
     try {
       const res = await fetch(`/api/connections/${platform}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Could not disconnect.");
-      setNote({ kind: "ok", text: `${PLATFORM_META[platform].label} disconnected.` });
+      if (!res.ok) throw new Error("Could not disconnect that account.");
+      setNote({ kind: "ok", text: `${label} disconnected.` });
       refresh();
     } catch (err) {
-      setNote({ kind: "err", text: err instanceof Error ? err.message : "Could not disconnect." });
+      setNote({ kind: "bad", text: err instanceof Error ? err.message : "Could not disconnect." });
     } finally {
       setBusy(null);
     }
@@ -79,95 +97,85 @@ export function Connections({ accounts }: Props) {
     setNote(null);
     try {
       const res = await fetch(`/api/sync/${platform}`, { method: "POST" });
-      const data = (await res.json()) as { error?: string; message?: string };
+      const data = (await res.json()) as { error?: string; message?: string; remaining?: number };
       if (!res.ok) throw new Error(data.error ?? "Sync failed.");
       setNote({ kind: "ok", text: data.message ?? "Synced." });
       refresh();
     } catch (err) {
-      setNote({ kind: "err", text: err instanceof Error ? err.message : "Sync failed." });
+      setNote({ kind: "bad", text: err instanceof Error ? err.message : "Sync failed." });
     } finally {
       setBusy(null);
     }
   }
 
-  const platforms: Platform[] = ["steam", "psn", "xbox"];
-  const soon = ["Epic Games", "Nintendo", "GOG", "Battle.net", "Riot", "itch.io"];
+  const live: Platform[] = ["steam", "psn", "xbox"];
+  const upcoming = MARQUEE_ORDER.filter((k) => !PLATFORM_BRANDS[k].live);
 
   return (
     <div className="card" style={{ padding: 24 }}>
-      <div className="eyebrow" style={{ marginBottom: 18 }}>
+      <h2 className="t-label" style={{ marginBottom: 18 }}>
         Connected platforms
-      </div>
+      </h2>
 
       {note && (
-        <p
-          role="status"
-          style={{
-            fontSize: 13,
-            lineHeight: 1.5,
-            color: note.kind === "ok" ? "var(--success)" : "var(--danger)",
-            background: note.kind === "ok" ? "rgba(63,191,127,.08)" : "rgba(255,90,90,.08)",
-            border: `1px solid ${note.kind === "ok" ? "rgba(63,191,127,.25)" : "rgba(255,90,90,.25)"}`,
-            borderRadius: 8,
-            padding: "10px 12px",
-            margin: "0 0 16px",
-          }}
-        >
-          {note.text}
-        </p>
+        <div style={{ marginBottom: 16 }}>
+          <Notice kind={note.kind}>{note.text}</Notice>
+        </div>
       )}
 
-      <div className="flex flex-col">
-        {platforms.map((p) => {
-          const acct = byPlatform.get(p);
+      <div className="stack">
+        {live.map((p) => {
+          const account = byPlatform.get(p);
           const meta = PLATFORM_META[p];
-          const help = HELP[p];
+          const help = p === "steam" ? null : HELP[p];
+          const isOpen = open === p;
+
           return (
-            <div key={p} style={{ padding: "14px 0", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-              <div className="flex items-center gap-4">
-                <div
-                  className="grid place-items-center font-display font-bold"
+            <div key={p} style={{ padding: "16px 0", borderTop: "1px solid var(--line)" }}>
+              <div className="flex items-center flex-wrap" style={{ gap: 14 }}>
+                <span
+                  className="grid place-items-center"
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 8,
-                    background: "var(--surface-4)",
+                    width: 36,
+                    height: 36,
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--surface-3)",
+                    border: "1px solid var(--line)",
                     flex: "none",
-                    fontSize: 11,
-                    letterSpacing: ".06em",
                   }}
                 >
-                  <span className={meta.text}>{meta.short}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{meta.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-4)" }}>
-                    {acct
-                      ? `${acct.handle ?? "Connected"} · synced ${timeAgo(acct.last_synced_at)}`
+                  <PlatformMark platform={p} size={18} />
+                </span>
+
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{meta.label}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--text-4)" }}>
+                    {account
+                      ? `${account.handle ?? "Connected"} · synced ${timeAgo(account.last_synced_at)}`
                       : "Not connected"}
                   </div>
                 </div>
-                {acct ? (
-                  <div className="flex gap-2">
+
+                {account ? (
+                  <div className="flex" style={{ gap: 8 }}>
                     <button
-                      className="btn-ghost"
-                      style={{ minHeight: 36 }}
+                      className="btn btn-sm btn-secondary"
                       onClick={() => sync(p)}
                       disabled={busy !== null}
                     >
                       <span
                         style={{
                           display: "inline-flex",
-                          animation: busy === `sync-${p}` ? "gvspin 1s linear infinite" : undefined,
+                          animation:
+                            busy === `sync-${p}` ? "trace-spin 0.9s linear infinite" : undefined,
                         }}
                       >
                         <Icon name="refresh" size={14} />
                       </span>
-                      {busy === `sync-${p}` ? "Syncing…" : "Sync"}
+                      {busy === `sync-${p}` ? "Syncing" : "Sync"}
                     </button>
                     <button
-                      className="btn-ghost"
-                      style={{ minHeight: 36, background: "none", color: "var(--text-2)" }}
+                      className="btn btn-sm btn-quiet"
                       onClick={() => disconnect(p)}
                       disabled={busy !== null}
                     >
@@ -175,67 +183,72 @@ export function Connections({ accounts }: Props) {
                     </button>
                   </div>
                 ) : p === "steam" ? (
-                  // Full navigation: Steam's OpenID flow leaves the app.
-                  <a className="btn-primary" href="/api/auth/steam/start" style={{ minHeight: 36, fontSize: 12.5 }}>
+                  <a href="/api/auth/steam/start" className="btn btn-sm btn-primary">
                     Connect
                   </a>
                 ) : (
                   <button
-                    className="btn-primary"
-                    style={{ minHeight: 36, fontSize: 12.5 }}
-                    onClick={() => setOpen(open === p ? null : p)}
-                    disabled={busy !== null}
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      setSecret("");
+                      setOpen(isOpen ? null : p);
+                    }}
+                    aria-expanded={isOpen}
                   >
-                    Connect
+                    {isOpen ? "Cancel" : "Connect"}
                   </button>
                 )}
               </div>
 
-              {acct?.sync_error && (
-                <p style={{ fontSize: 12, color: "var(--danger)", margin: "8px 0 0" }}>
-                  Last sync failed: {acct.sync_error}
+              {account?.sync_error && (
+                <p style={{ fontSize: 12.5, color: "var(--bad)", margin: "10px 0 0" }}>
+                  Last sync failed. {account.sync_error}
                 </p>
               )}
 
-              {open === p && (
+              {isOpen && help && (
                 <div
-                  style={{
-                    marginTop: 14,
-                    padding: 16,
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 10,
-                  }}
+                  className="tile"
+                  style={{ marginTop: 14, padding: 18, background: "var(--surface-2)" }}
                 >
-                  <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--text-2)", margin: "0 0 12px" }}>
-                    {help.how}
+                  <p className="t-sm" style={{ margin: "0 0 12px" }}>
+                    {help.intro}
                   </p>
-                  {help.link && (
-                    <a
-                      href={help.link.href}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      style={{ fontSize: 12.5, fontWeight: 600, display: "inline-block", marginBottom: 12 }}
-                    >
-                      {help.link.label} ↗
-                    </a>
-                  )}
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <div className="field" style={{ flex: 1, minWidth: 240 }}>
+                  <ol
+                    className="t-sm"
+                    style={{ margin: "0 0 14px", paddingLeft: 18, display: "grid", gap: 4 }}
+                  >
+                    {help.steps.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ol>
+                  <a
+                    href={help.link.href}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="btn btn-sm btn-quiet"
+                    style={{ marginBottom: 14 }}
+                  >
+                    {help.link.label}
+                    <Icon name="external" size={13} />
+                  </a>
+                  <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+                    <div className="field" style={{ flex: 1, minWidth: 220 }}>
                       <input
                         type="password"
                         value={secret}
                         onChange={(e) => setSecret(e.target.value)}
-                        placeholder={p === "psn" ? "Paste your NPSSO token" : "Paste your OpenXBL API key"}
+                        placeholder={help.placeholder}
                         autoComplete="off"
+                        spellCheck={false}
                       />
                     </div>
                     <button
-                      className="btn-primary"
-                      onClick={() => connect(p)}
+                      className="btn btn-primary"
+                      onClick={() => link(p as Exclude<Platform, "steam">)}
                       disabled={busy !== null || secret.trim().length < 20}
                     >
-                      {busy === `connect-${p}` ? "Checking…" : "Link account"}
+                      {busy === `link-${p}` ? "Checking" : "Link account"}
                     </button>
                   </div>
                 </div>
@@ -243,21 +256,25 @@ export function Connections({ accounts }: Props) {
             </div>
           );
         })}
+      </div>
 
-        {soon.map((name) => (
-          <div
-            key={name}
-            className="flex items-center gap-4"
-            style={{ padding: "14px 0", borderBottom: "1px solid rgba(255,255,255,.06)", opacity: 0.5 }}
-          >
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--surface-4)", flex: "none" }} />
-            <div className="flex-1">
-              <div style={{ fontSize: 14.5, fontWeight: 600 }}>{name}</div>
-              <div style={{ fontSize: 12, color: "var(--text-4)" }}>No public API yet — on the roadmap</div>
-            </div>
-            <span style={{ fontSize: 12, color: "var(--text-4)" }}>Coming soon</span>
-          </div>
-        ))}
+      <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+        <h3 className="t-label" style={{ marginBottom: 12 }}>
+          Not available yet
+        </h3>
+        <p className="t-sm" style={{ margin: "0 0 14px", maxWidth: "62ch" }}>
+          None of these expose a public API for reading your library, so TRACE cannot connect
+          to them honestly. They are listed here so you know they are on the roadmap rather
+          than missing by accident.
+        </p>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
+          {upcoming.map((k) => (
+            <span key={k} className="chip" style={{ opacity: 0.72, cursor: "default" }}>
+              <PlatformMark platform={k} size={13} />
+              {PLATFORM_BRANDS[k].label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

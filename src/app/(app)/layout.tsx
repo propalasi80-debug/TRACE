@@ -11,11 +11,25 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div
       data-shell
-      className="grid"
-      style={{ gridTemplateColumns: "236px minmax(0,1fr)", minHeight: "100vh" }}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "var(--sidebar-w) minmax(0, 1fr)",
+        minHeight: "100vh",
+      }}
     >
       <Sidebar />
-      <main data-main style={{ padding: "36px 44px 64px", maxWidth: 1500 }}>{children}</main>
+      <main
+        data-main
+        style={{
+          position: "relative",
+          padding: "32px var(--shell-pad-x) 72px",
+          maxWidth: "var(--page-max)",
+          width: "100%",
+          minWidth: 0,
+        }}
+      >
+        {children}
+      </main>
     </div>
   );
 }

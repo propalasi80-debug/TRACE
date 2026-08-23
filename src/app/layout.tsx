@@ -1,20 +1,29 @@
 import type { Metadata, Viewport } from "next";
-// Fonts are self-hosted rather than fetched from Google at build time:
-// no external requests at runtime, and the build works offline.
+// Self-hosted: no external font requests at runtime, and builds work offline.
+// Saira carries a width axis, which lets display type sit closer to the
+// proportions of the TRACE wordmark.
 import "@fontsource-variable/inter";
-import "@fontsource/chakra-petch/500.css";
-import "@fontsource/chakra-petch/600.css";
-import "@fontsource/chakra-petch/700.css";
+import "@fontsource-variable/saira/wdth.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trace — Your gaming life. One identity.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://trace-pearl-six.vercel.app"),
+  title: {
+    default: "TRACE",
+    template: "%s · TRACE",
+  },
   description:
-    "Trace reads every account you own and turns years of playing into one rating, one library and one profile that finally belongs to you.",
+    "TRACE reads every gaming account you own and turns years of playing into one rating, one library and one profile.",
+  openGraph: {
+    title: "TRACE",
+    description: "Your gaming life. One identity.",
+    siteName: "TRACE",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#050506",
+  themeColor: "#050609",
   colorScheme: "dark",
 };
 

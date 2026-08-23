@@ -1,292 +1,326 @@
 import Link from "next/link";
-import { Backdrop } from "@/components/landing/Backdrop";
-import { Marquee } from "@/components/landing/Marquee";
 import { Logo } from "@/components/Logo";
+import { Topology } from "@/components/landing/Topology";
+import { PlatformMarquee, TitleMarquee } from "@/components/landing/Marquee";
+import { PlatformMark } from "@/components/PlatformMark";
 import { getGlobalStats } from "@/lib/stats";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const HOW = [
+  {
+    step: "01",
+    title: "Connect",
+    body: "Sign in through Steam, or paste a PlayStation or Xbox token. Access is read only and you can revoke it at any time.",
+  },
+  {
+    step: "02",
+    title: "Sync",
+    body: "TRACE pulls your owned games, playtime, achievements and how rare each one is, then keeps them current in the background.",
+  },
+  {
+    step: "03",
+    title: "Read",
+    body: "One merged library, one rating built from what you actually played, and a profile you can share on a single link.",
+  },
+];
+
 export default async function LandingPage() {
   const [stats, user] = await Promise.all([getGlobalStats(), getCurrentUser()]);
   const primaryHref = user ? "/home" : "/signup";
+  const primaryLabel = user ? "Open TRACE" : "Connect your accounts";
 
-  const bands = [
-    { n: stats.hasData ? stats.hours.toLocaleString() : "—", label: "Hours read" },
-    { n: stats.hasData ? stats.games.toLocaleString() : "—", label: "Games unified" },
-    { n: stats.hasData ? stats.achievements.toLocaleString() : "—", label: "Achievements" },
-    { n: "3", label: "Platforms live" },
+  const band = [
+    { value: stats.hasData ? stats.hours.toLocaleString() : null, label: "Hours read" },
+    { value: stats.hasData ? stats.games.toLocaleString() : null, label: "Games unified" },
+    {
+      value: stats.hasData ? stats.achievements.toLocaleString() : null,
+      label: "Achievements",
+    },
+    { value: "3", label: "Platforms live" },
   ];
 
   return (
-    <div className="relative overflow-hidden" style={{ background: "var(--bg)" }}>
-      <Backdrop />
+    <div style={{ position: "relative", overflow: "hidden", minHeight: "100vh" }}>
+      <Topology />
 
-      {/* Header */}
-      <div
-        className="sticky z-60 flex items-center gap-7"
+      <header
         style={{
+          position: "sticky",
           top: 0,
-          height: 66,
-          padding: "0 40px",
-          background: "rgba(5,5,6,.82)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          borderBottom: "1px solid rgba(255,255,255,.06)",
+          zIndex: 40,
+          height: 64,
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+          padding: "0 var(--shell-pad-x)",
+          background: "rgba(5,6,9,0.78)",
+          backdropFilter: "blur(16px) saturate(140%)",
+          WebkitBackdropFilter: "blur(16px) saturate(140%)",
+          borderBottom: "1px solid var(--line)",
         }}
       >
-        <Logo />
-        <div className="flex-1" />
+        <Logo height={20} />
+        <span style={{ flex: 1 }} />
         {user ? (
-          <Link href="/home" style={{ fontSize: 13.5, color: "var(--text-2)" }}>
+          <Link href="/home" className="btn btn-sm btn-quiet">
             Dashboard
           </Link>
         ) : (
-          <Link href="/login" style={{ fontSize: 13.5, color: "var(--text-2)" }}>
-            Log in
-          </Link>
+          <>
+            <Link
+              href="/login"
+              style={{ fontSize: 13.5, color: "var(--text-2)", marginRight: 4 }}
+            >
+              Log in
+            </Link>
+            <Link href="/signup" className="btn btn-sm btn-primary">
+              Get started
+            </Link>
+          </>
         )}
-        <Link
-          href={primaryHref}
-          className="flex items-center"
+      </header>
+
+      <main style={{ position: "relative", zIndex: 1 }}>
+        {/* Hero */}
+        <section
           style={{
-            minHeight: 42,
-            padding: "0 18px",
-            background: "var(--accent)",
-            borderRadius: 9,
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 600,
+            padding: "clamp(64px, 11vw, 128px) var(--shell-pad-x) clamp(48px, 7vw, 84px)",
+            maxWidth: 1180,
+            margin: "0 auto",
+            textAlign: "center",
           }}
         >
-          {user ? "Open Trace" : "Get started"}
-        </Link>
-      </div>
-
-      {/* Hero */}
-      <section data-hero className="relative text-center" style={{ padding: "110px 40px 76px" }}>
-        <div
-          aria-hidden="true"
-          data-aurora
-          style={{
-            position: "absolute",
-            top: 40,
-            left: "50%",
-            width: 1100,
-            height: 1100,
-            marginLeft: -550,
-            pointerEvents: "none",
-            zIndex: -1,
-            borderRadius: "50%",
-            background:
-              "conic-gradient(from 0deg,rgba(46,125,255,.26),rgba(124,92,255,.2) 25%,rgba(0,209,178,.14) 50%,rgba(255,70,85,.16) 72%,rgba(46,125,255,.26))",
-            filter: "blur(90px)",
-            animation: "spin 68s linear infinite",
-            opacity: 0.3,
-            WebkitMaskImage: "radial-gradient(closest-side,#000 30%,transparent 72%)",
-            maskImage: "radial-gradient(closest-side,#000 30%,transparent 72%)",
-          }}
-        />
-
-        <div
-          data-rise
-          className="inline-flex items-center gap-[10px]"
-          style={{
-            border: "1px solid rgba(46,125,255,.35)",
-            background: "rgba(46,125,255,.09)",
-            borderRadius: 100,
-            padding: "7px 15px",
-            marginBottom: 34,
-          }}
-        >
-          <span className="relative" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }}>
+          <span
+            data-rise
+            className="badge badge-accent"
+            style={{ padding: "6px 12px", marginBottom: 26 }}
+          >
             <span
               style={{
-                position: "absolute",
-                inset: -4,
+                position: "relative",
+                width: 6,
+                height: 6,
                 borderRadius: "50%",
-                border: "1px solid var(--accent)",
-                animation: "pulseRing 2.4s ease-out infinite",
+                background: "var(--accent)",
+                display: "inline-block",
               }}
-            />
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  inset: -3,
+                  borderRadius: "50%",
+                  border: "1px solid var(--accent)",
+                  animation: "trace-pulse 2.6s ease-out infinite",
+                }}
+              />
+            </span>
+            Steam, PlayStation and Xbox in one place
           </span>
-          <span
-            className="uppercase"
-            style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".14em", color: "rgba(245,246,247,.78)" }}
-          >
-            Three platforms. One history.
-          </span>
-        </div>
 
-        <h1
-          data-rise
-          className="font-display font-bold uppercase"
+          <h1
+            data-rise
+            className="t-display"
+            style={{
+              fontSize: "clamp(34px, 6.6vw, 76px)",
+              lineHeight: 0.98,
+              margin: "0 auto 22px",
+              maxWidth: "17ch",
+              textWrap: "balance",
+              animationDelay: "0.06s",
+            }}
+          >
+            Your gaming life.
+            <br />
+            <span style={{ color: "var(--accent-text)" }}>One identity.</span>
+          </h1>
+
+          <p
+            data-rise
+            style={{
+              fontSize: "clamp(15px, 1.6vw, 17px)",
+              lineHeight: 1.62,
+              color: "var(--text-2)",
+              margin: "0 auto 32px",
+              maxWidth: "54ch",
+              animationDelay: "0.12s",
+            }}
+          >
+            Your history is scattered across accounts that will never talk to each other.
+            TRACE reads all of them and gives you one library, one rating and one profile
+            that belongs to you.
+          </p>
+
+          <div
+            data-rise
+            className="flex flex-wrap items-center justify-center"
+            style={{ gap: 12, animationDelay: "0.18s" }}
+          >
+            <Link href={primaryHref} className="btn btn-lg btn-primary">
+              {primaryLabel}
+            </Link>
+            <Link href="/login" className="btn btn-lg btn-secondary">
+              I already have an account
+            </Link>
+          </div>
+
+          <p
+            data-rise
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-4)",
+              marginTop: 20,
+              animationDelay: "0.24s",
+            }}
+          >
+            Read only access. Revocable any time. Never sold.
+          </p>
+        </section>
+
+        {/* Marquees */}
+        <section style={{ padding: "8px 0 clamp(56px, 8vw, 96px)" }}>
+          <PlatformMarquee perPlatform={stats.perPlatform} />
+          <div style={{ height: 12 }} />
+          <TitleMarquee games={stats.topGames} />
+        </section>
+
+        {/* Stat band */}
+        <section
           style={{
-            fontSize: 96,
-            lineHeight: 0.92,
-            letterSpacing: ".01em",
-            margin: "0 auto 26px",
-            maxWidth: "15ch",
-            textWrap: "balance",
-            animationDelay: ".08s",
-            textShadow: "0 0 90px rgba(46,125,255,.28)",
+            borderTop: "1px solid var(--line)",
+            borderBottom: "1px solid var(--line)",
+            background: "rgba(11,13,18,0.6)",
           }}
         >
-          Your gaming life.
-          <br />
-          <span
+          <div
+            data-cols="4"
             style={{
-              background: "linear-gradient(96deg,#8FB7FF,#2E7DFF 30%,#7C5CFF 55%,#00D1B2 80%,#8FB7FF)",
-              backgroundSize: "260% 100%",
-              animation: "hueflow 9s ease-in-out infinite",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-              filter: "drop-shadow(0 14px 44px rgba(46,125,255,.35))",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              maxWidth: "var(--page-max)",
+              margin: "0 auto",
             }}
           >
-            One identity.
-          </span>
-        </h1>
-
-        <p
-          data-rise
-          style={{
-            fontSize: 17.5,
-            lineHeight: 1.6,
-            color: "var(--text-2)",
-            margin: "0 auto 38px",
-            maxWidth: "56ch",
-            animationDelay: ".16s",
-          }}
-        >
-          Trace reads every account you own and turns years of playing into one rating, one library and
-          one profile that finally belongs to you.
-        </p>
-
-        <div data-rise className="flex flex-wrap gap-[14px] justify-center" style={{ animationDelay: ".24s" }}>
-          <Link
-            href={primaryHref}
-            className="relative overflow-hidden flex items-center gap-[10px] whitespace-nowrap"
-            style={{
-              minHeight: 52,
-              padding: "0 26px",
-              background: "var(--accent)",
-              borderRadius: 11,
-              color: "#fff",
-              fontSize: 15.5,
-              fontWeight: 700,
-              boxShadow: "0 18px 50px -18px rgba(46,125,255,.9)",
-            }}
-          >
-            <span
-              data-sweep
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                width: "38%",
-                background: "linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent)",
-                animation: "sweep 3.6s ease-in-out infinite",
-              }}
-            />
-            <span className="relative">Connect your accounts</span>
-            <span className="relative">→</span>
-          </Link>
-          <Link
-            href="/rating"
-            className="flex items-center"
-            style={{
-              minHeight: 52,
-              padding: "0 24px",
-              background: "rgba(255,255,255,.03)",
-              border: "1px solid rgba(255,255,255,.12)",
-              borderRadius: 11,
-              color: "var(--text)",
-              fontSize: 15.5,
-              fontWeight: 600,
-            }}
-          >
-            See a live rating
-          </Link>
-        </div>
-      </section>
-
-      <Marquee perPlatform={stats.perPlatform} topGames={stats.topGames} />
-
-      {/* Stat band */}
-      <section
-        className="relative"
-        style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}
-      >
-        <div
-          data-cols3
-          className="grid"
-          style={{ maxWidth: 1340, margin: "0 auto", gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}
-        >
-          {bands.map((s) => (
-            <div key={s.label} style={{ padding: "52px 30px", borderRight: "1px solid var(--border)" }}>
-              <div className="font-display font-bold tnum" style={{ fontSize: 44, lineHeight: 1 }}>
-                {s.n}
-              </div>
+            {band.map((s, i) => (
               <div
-                className="uppercase"
-                style={{ fontSize: 11, letterSpacing: ".2em", color: "var(--text-4)", marginTop: 10 }}
+                key={s.label}
+                style={{
+                  padding: "clamp(28px, 4vw, 44px) clamp(18px, 3vw, 32px)",
+                  borderRight: i < band.length - 1 ? "1px solid var(--line)" : undefined,
+                }}
               >
-                {s.label}
+                <div
+                  className="t-num"
+                  style={{ fontSize: "clamp(26px, 3.6vw, 38px)", color: "var(--text)" }}
+                >
+                  {s.value ?? (
+                    <span style={{ color: "var(--text-5)" }} title="No data synced yet">
+                      0
+                    </span>
+                  )}
+                </div>
+                <div className="t-label" style={{ marginTop: 8 }}>
+                  {s.label}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      {/* Closing CTA */}
-      <section className="relative text-center overflow-hidden" style={{ padding: "110px 40px" }}>
-        <div
-          aria-hidden="true"
-          data-orb
+        {/* How it works */}
+        <section
           style={{
-            position: "absolute",
-            bottom: -260,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 760,
-            height: 520,
-            background: "radial-gradient(ellipse at center,rgba(46,125,255,.28),transparent 70%)",
-            filter: "blur(14px)",
-            animation: "orb 15s ease-in-out infinite",
-            pointerEvents: "none",
-          }}
-        />
-        <h2
-          className="relative font-display font-bold uppercase"
-          style={{ fontSize: 52, lineHeight: 1.02, letterSpacing: ".03em", margin: "0 0 30px", textWrap: "balance" }}
-        >
-          A decade of playing,
-          <br />
-          finally readable
-        </h2>
-        <Link
-          href={primaryHref}
-          className="relative inline-flex items-center gap-[10px] whitespace-nowrap"
-          style={{
-            minHeight: 52,
-            padding: "0 28px",
-            background: "var(--accent)",
-            borderRadius: 11,
-            color: "#fff",
-            fontSize: 15.5,
-            fontWeight: 700,
-            boxShadow: "0 18px 50px -18px rgba(46,125,255,.9)",
+            padding: "clamp(56px, 8vw, 100px) var(--shell-pad-x)",
+            maxWidth: "var(--page-max)",
+            margin: "0 auto",
           }}
         >
-          Connect your accounts →
-        </Link>
-        <p className="relative" style={{ fontSize: 13, color: "rgba(245,246,247,.45)", margin: "22px 0 0" }}>
-          Read-only access. Revocable any time. Never sold.
-        </p>
-      </section>
+          <div className="t-label" style={{ marginBottom: 14 }}>
+            How it works
+          </div>
+          <h2
+            className="t-display"
+            style={{ fontSize: "clamp(24px, 3.4vw, 34px)", marginBottom: 40, maxWidth: "18ch" }}
+          >
+            Three steps, then it runs itself
+          </h2>
+          <div
+            data-cols="3"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 16,
+            }}
+          >
+            {HOW.map((h) => (
+              <div key={h.step} className="card" style={{ padding: 24 }}>
+                <div
+                  className="t-num"
+                  style={{ fontSize: 13, color: "var(--accent-text)", marginBottom: 16 }}
+                >
+                  {h.step}
+                </div>
+                <h3 className="t-h2" style={{ marginBottom: 10 }}>
+                  {h.title}
+                </h3>
+                <p className="t-body" style={{ margin: 0 }}>
+                  {h.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Closing */}
+        <section
+          style={{
+            padding: "clamp(56px, 8vw, 100px) var(--shell-pad-x)",
+            textAlign: "center",
+            borderTop: "1px solid var(--line)",
+          }}
+        >
+          <h2
+            className="t-display"
+            style={{
+              fontSize: "clamp(26px, 4.4vw, 44px)",
+              lineHeight: 1.05,
+              margin: "0 auto 24px",
+              maxWidth: "16ch",
+            }}
+          >
+            A decade of playing, finally readable
+          </h2>
+          <Link href={primaryHref} className="btn btn-lg btn-primary">
+            {primaryLabel}
+          </Link>
+        </section>
+
+        <footer
+          style={{
+            borderTop: "1px solid var(--line)",
+            padding: "28px var(--shell-pad-x)",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 16,
+            maxWidth: "var(--page-max)",
+            margin: "0 auto",
+          }}
+        >
+          <Logo height={18} />
+          <span style={{ flex: 1 }} />
+          <div className="flex items-center" style={{ gap: 14 }}>
+            {(["steam", "psn", "xbox"] as const).map((p) => (
+              <PlatformMark key={p} platform={p} size={16} color="var(--text-5)" />
+            ))}
+          </div>
+          <span style={{ fontSize: 12, color: "var(--text-4)" }}>
+            Platform names and marks belong to their respective owners.
+          </span>
+        </footer>
+      </main>
     </div>
   );
 }

@@ -75,7 +75,7 @@ export interface UserSummary {
 }
 
 /**
- * Trace Rating — deterministic, transparent, computed only from synced data.
+ * TRACE Rating: deterministic, transparent, computed only from synced data.
  * Breadth, depth, completion and rarity each contribute; the result is mapped
  * onto a 0–1000 scale so it reads like a rating rather than a percentage.
  */
@@ -252,15 +252,15 @@ export async function getAttributes(userId: string): Promise<AttributeScore[]> {
     Math.round(Math.max(0, Math.min(1, x / ceiling)) * 100);
 
   const values: Record<string, number> = {
-    Skill: scale(rare * 2 + ultra * 6, 260),
-    Mastery: scale(topHours, 300),
-    Versatility: scale(started, 90),
-    Strategy: scale(hours / Math.max(1, started), 45),
-    Precision: scale(ultra, 24),
+    Skill: scale(rare * 2 + ultra * 6, 900),
+    Mastery: scale(topHours, 700),
+    Versatility: scale(started, 140),
+    Strategy: scale(hours / Math.max(1, started), 110),
+    Precision: scale(ultra, 70),
     Completion: scale(finished / Math.max(1, started), 0.45),
     Teamwork: scale(platforms * 22 + started / 4, 100),
-    Adaptability: scale(started - finished, 60),
-    Consistency: scale(months, 30),
+    Adaptability: scale(started - finished, 100),
+    Consistency: scale(months, 42),
   };
 
   return Object.entries(values).map(([name, value]) => ({

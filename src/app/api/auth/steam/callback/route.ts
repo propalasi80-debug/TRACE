@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     try {
       profile = await fetchSteamProfile(steamId);
     } catch {
-      // STEAM_API_KEY may be missing — linking still works without the profile.
+      // STEAM_API_KEY may be missing, linking still works without the profile.
     }
 
     const current = await getCurrentUser();

@@ -46,3 +46,7 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# local scratch (mount cannot delete; safe to remove in Explorer)
+_to_delete/
+_update.zip

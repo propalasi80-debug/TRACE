@@ -50,6 +50,6 @@ function message(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   if (raw === "UNAUTHORIZED") return "You need to be logged in.";
   if (/npsso|code|401|403/i.test(raw))
-    return "PSN rejected that token. Grab a fresh NPSSO — they expire after about two months.";
+    return "PSN rejected that token. Grab a fresh NPSSO, they expire after about two months.";
   return raw.slice(0, 200);
 }

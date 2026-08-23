@@ -1,25 +1,51 @@
 import { requireUser } from "@/lib/auth";
 import { getBadges, getXpBalance, getRarestAchievements } from "@/lib/queries";
 import { getUserSummary } from "@/lib/stats";
-import { PageHeading, EmptyState } from "@/components/app/ui";
+import { PageHead, Empty, Grid, Meter, Avatar } from "@/components/app/ui";
 import { Icon } from "@/components/Icon";
 import { rarityTier, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Rewards · Trace" };
+export const metadata = { title: "Rewards" };
 
-/** Milestone badges are derived from real totals, so they can't be faked. */
-function milestones(summary: { games: number; minutes: number; achievementsEarned: number; completionPct: number }) {
-  const hours = summary.minutes / 60;
+interface Milestone {
+  slug: string;
+  name: string;
+  requirement: string;
+  progress: number;
+  earned: boolean;
+}
+
+function milestones(s: {
+  games: number;
+  minutes: number;
+  achievementsEarned: number;
+  completionPct: number;
+}): Milestone[] {
+  const hours = s.minutes / 60;
+  const mk = (
+    slug: string,
+    name: string,
+    requirement: string,
+    current: number,
+    target: number
+  ): Milestone => ({
+    slug,
+    name,
+    requirement,
+    progress: Math.min(100, (current / target) * 100),
+    earned: current >= target,
+  });
+
   return [
-    { slug: "first-light", name: "First Light", need: "Sync your first platform", got: summary.games > 0 },
-    { slug: "collector", name: "Collector", need: "50 games in your library", got: summary.games >= 50 },
-    { slug: "archivist", name: "Archivist", need: "250 games in your library", got: summary.games >= 250 },
-    { slug: "marathon", name: "Marathon", need: "1,000 hours played", got: hours >= 1000 },
-    { slug: "decade", name: "Decade", need: "4,000 hours played", got: hours >= 4000 },
-    { slug: "specialist", name: "Specialist", need: "500 achievements", got: summary.achievementsEarned >= 500 },
-    { slug: "completionist", name: "Completionist", need: "60% average completion", got: summary.completionPct >= 60 },
-    { slug: "perfectionist", name: "Perfectionist", need: "85% average completion", got: summary.completionPct >= 85 },
+    mk("first-light", "First Light", "Sync your first platform", s.games > 0 ? 1 : 0, 1),
+    mk("collector", "Collector", "50 games in your library", s.games, 50),
+    mk("archivist", "Archivist", "250 games in your library", s.games, 250),
+    mk("marathon", "Marathon", "1,000 hours played", hours, 1000),
+    mk("decade", "Decade", "4,000 hours played", hours, 4000),
+    mk("specialist", "Specialist", "500 achievements", s.achievementsEarned, 500),
+    mk("completionist", "Completionist", "60% average completion", s.completionPct, 60),
+    mk("perfectionist", "Perfectionist", "85% average completion", s.completionPct, 85),
   ];
 }
 
@@ -29,127 +55,142 @@ export default async function RewardsPage() {
     getUserSummary(user.id),
     getXpBalance(user.id),
     getBadges(user.id),
-    getRarestAchievements(user.id, 6),
+    getRarestAchievements(user.id, 8),
   ]);
 
   if (summary.games === 0) {
     return (
-      <div>
-        <PageHeading title="Rewards" subtitle="Everything you have earned from challenges, streaks and milestones." />
-        <EmptyState
+      <>
+        <PageHead title="Rewards" subtitle="Milestones unlocked from real totals." />
+        <Empty
           title="Nothing earned yet"
-          body="Badges unlock off real totals — games synced, hours played, achievements taken. Connect a platform to start the count."
-          cta={{ href: "/settings", label: "Connect a platform" }}
+          body="Every badge here is tied to a real number: games synced, hours played, achievements taken. Connect a platform to start counting."
+          cta={{ href: "/settings", label: "Connect an account" }}
         />
-      </div>
+      </>
     );
   }
 
-  const earnedSlugs = new Set(badges.map((b) => b.slug));
+  const earnedAt = new Map(badges.map((b) => [b.slug, b.earned_at]));
   const list = milestones(summary);
-  const earnedCount = list.filter((m) => m.got).length;
+  const earnedCount = list.filter((m) => m.earned).length;
 
   return (
-    <div>
-      <PageHeading title="Rewards" subtitle="Everything you have earned from challenges, streaks and milestones." />
+    <>
+      <PageHead
+        title="Rewards"
+        subtitle="Milestones computed from your synced totals, plus your rarest unlocks."
+      />
 
-      <div
-        data-cols3
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 18, marginBottom: 40 }}
-      >
-        {[
-          { v: xp.toLocaleString(), l: "XP balance", accent: true },
-          { v: earnedCount, l: "Badges earned" },
-          { v: summary.achievementsEarned.toLocaleString(), l: "Achievements" },
-        ].map((s) => (
-          <div key={s.l} className="card" style={{ borderRadius: 12, padding: 22 }}>
-            <div
-              className="tnum"
-              style={{ fontSize: 34, fontWeight: 700, color: s.accent ? "var(--accent)" : undefined }}
-            >
-              {s.v}
-            </div>
-            <div
-              className="uppercase"
-              style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--text-4)", marginTop: 6 }}
-            >
-              {s.l}
-            </div>
+      <Grid cols={3} gap={14}>
+        <div className="card" style={{ padding: 22 }}>
+          <div className="t-num" style={{ fontSize: 30, color: "var(--accent-text)" }}>
+            {xp.toLocaleString()}
           </div>
-        ))}
-      </div>
+          <div className="t-label" style={{ marginTop: 8 }}>
+            XP balance
+          </div>
+        </div>
+        <div className="card" style={{ padding: 22 }}>
+          <div className="t-num" style={{ fontSize: 30 }}>
+            {earnedCount}
+            <span style={{ fontSize: 16, color: "var(--text-4)" }}>/{list.length}</span>
+          </div>
+          <div className="t-label" style={{ marginTop: 8 }}>
+            Milestones
+          </div>
+        </div>
+        <div className="card" style={{ padding: 22 }}>
+          <div className="t-num" style={{ fontSize: 30 }}>
+            {summary.achievementsEarned.toLocaleString()}
+          </div>
+          <div className="t-label" style={{ marginTop: 8 }}>
+            Achievements
+          </div>
+        </div>
+      </Grid>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>Badges</h2>
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(auto-fill,minmax(168px,1fr))", gap: 16, marginBottom: 40 }}
-      >
-        {list.map((b) => (
-          <div
-            key={b.slug}
-            className="card text-center"
-            style={{ borderRadius: 12, padding: 20, opacity: b.got ? 1 : 0.45 }}
-          >
+      <section style={{ margin: "36px 0" }}>
+        <h2 className="t-h2" style={{ marginBottom: 16 }}>
+          Milestones
+        </h2>
+        <Grid min={210} gap={14}>
+          {list.map((m) => (
             <div
-              className="grid place-items-center"
-              style={{
-                width: 46,
-                height: 46,
-                margin: "0 auto 14px",
-                borderRadius: 12,
-                background: "rgba(46,125,255,.14)",
-                border: "1px solid rgba(46,125,255,.32)",
-                color: "var(--accent)",
-              }}
+              key={m.slug}
+              className="card"
+              style={{ padding: 20, opacity: m.earned ? 1 : 0.72 }}
             >
-              <Icon name="trophy" size={20} />
+              <div className="flex items-center" style={{ gap: 12, marginBottom: 14 }}>
+                <span
+                  className="grid place-items-center"
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "var(--r-sm)",
+                    background: m.earned ? "var(--accent-14)" : "var(--surface-3)",
+                    border: `1px solid ${m.earned ? "var(--accent-45)" : "var(--line)"}`,
+                    color: m.earned ? "var(--accent-text)" : "var(--text-5)",
+                    flex: "none",
+                  }}
+                >
+                  <Icon name="trophy" size={17} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.name}</div>
+                  <div className="t-sm" style={{ fontSize: 12 }}>
+                    {m.earned
+                      ? earnedAt.has(m.slug)
+                        ? `Earned ${timeAgo(earnedAt.get(m.slug))}`
+                        : "Earned"
+                      : m.requirement}
+                  </div>
+                </div>
+              </div>
+              {!m.earned && <Meter pct={m.progress} />}
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 5 }}>{b.name}</div>
-            <div style={{ fontSize: 11.5, color: "var(--text-4)" }}>
-              {b.got
-                ? earnedSlugs.has(b.slug)
-                  ? `Earned ${timeAgo(badges.find((x) => x.slug === b.slug)?.earned_at)}`
-                  : "Earned"
-                : b.need}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </Grid>
+      </section>
 
       {rarest.length > 0 && (
-        <>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>Your rarest unlocks</h2>
-          <div className="flex flex-col gap-3">
+        <section>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            Your rarest unlocks
+          </h2>
+          <div className="stack" style={{ gap: 10 }}>
             {rarest.map((a) => {
               const tier = rarityTier(a.rarity_pct);
               return (
                 <div
                   key={a.id}
-                  className="card flex items-center gap-[18px]"
-                  style={{ borderRadius: 12, padding: "16px 20px" }}
+                  className="card flex items-center"
+                  style={{ gap: 14, padding: "13px 16px" }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{a.name}</div>
-                    <div style={{ fontSize: 12.5, color: "var(--text-4)", marginTop: 3 }}>
+                  <Avatar src={a.icon_url} size={36} radius={8} name={a.name} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="truncate-1" style={{ fontSize: 14, fontWeight: 600 }}>
+                      {a.name}
+                    </div>
+                    <div className="truncate-1 t-sm" style={{ fontSize: 12 }}>
                       {a.game_name} · {timeAgo(a.unlocked_at)}
                     </div>
                   </div>
-                  <span
-                    className={tier.className}
-                    style={{ fontSize: 11.5, fontWeight: 700, borderRadius: 6, padding: "5px 10px" }}
-                  >
+                  <span className="badge" style={{ color: tier.color, borderColor: tier.border }}>
                     {tier.label}
                   </span>
-                  <span className="tnum" style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
+                  <span
+                    className="t-num"
+                    style={{ fontSize: 13, color: tier.color, minWidth: 52, textAlign: "right" }}
+                  >
                     {a.rarity_pct?.toFixed(2)}%
                   </span>
                 </div>
               );
             })}
           </div>
-        </>
+        </section>
       )}
-    </div>
+    </>
   );
 }

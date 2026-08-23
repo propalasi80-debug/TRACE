@@ -1,101 +1,84 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { StarIcon } from "@/components/Icon";
+import { PlatformMark } from "@/components/PlatformMark";
+import { PLATFORM_BRANDS } from "@/lib/platforms/registry";
 import { PLATFORM_META, type Platform } from "@/lib/types";
 
-export function PageHeading({
+export function PageHead({
   title,
   subtitle,
   eyebrow,
-  right,
+  actions,
 }: {
   title: string;
   subtitle?: string;
   eyebrow?: string;
-  right?: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap gap-4 items-end justify-between" style={{ marginBottom: 26 }}>
-      <div>
+    <div
+      className="flex flex-wrap items-end justify-between"
+      style={{ gap: 16, marginBottom: 28 }}
+    >
+      <div style={{ minWidth: 0 }}>
         {eyebrow && (
-          <div
-            className="uppercase"
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: ".22em",
-              color: "var(--text-4)",
-              marginBottom: 12,
-            }}
-          >
+          <div className="t-label" style={{ marginBottom: 10 }}>
             {eyebrow}
           </div>
         )}
-        <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-.01em", margin: subtitle ? "0 0 8px" : 0 }}>
-          {title}
-        </h1>
-        {subtitle && <p style={{ fontSize: 14.5, color: "var(--text-3)", margin: 0 }}>{subtitle}</p>}
+        <h1 className="t-h1">{title}</h1>
+        {subtitle && (
+          <p className="t-sm" style={{ margin: "8px 0 0", maxWidth: "68ch" }}>
+            {subtitle}
+          </p>
+        )}
       </div>
-      {right}
+      {actions}
     </div>
   );
 }
 
-export function StatTile({ value, label }: { value: string | number; label: string }) {
+export function Stat({
+  value,
+  label,
+  tone = "default",
+}: {
+  value: string | number;
+  label: string;
+  tone?: "default" | "accent";
+}) {
   return (
-    <div className="tile text-center" style={{ padding: "14px 10px" }}>
-      <div className="tnum" style={{ fontSize: 22, fontWeight: 700 }}>
+    <div className="tile" style={{ padding: "16px 14px" }}>
+      <div
+        className="t-num"
+        style={{ fontSize: 22, color: tone === "accent" ? "var(--accent-text)" : "var(--text)" }}
+      >
         {value}
       </div>
-      <div
-        className="uppercase"
-        style={{ fontSize: 9.5, letterSpacing: ".16em", color: "var(--text-4)", marginTop: 4 }}
-      >
+      <div className="t-label" style={{ fontSize: 9.5, letterSpacing: "0.16em", marginTop: 6 }}>
         {label}
       </div>
     </div>
   );
 }
 
-export function Progress({ pct, height = 5 }: { pct: number; height?: number }) {
+export function Meter({ pct }: { pct: number }) {
+  const v = Math.max(0, Math.min(100, pct));
   return (
-    <div
-      style={{
-        height,
-        borderRadius: height / 2 + 0.5,
-        background: "rgba(255,255,255,.08)",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          height: "100%",
-          background: "var(--accent)",
-          width: `${Math.max(0, Math.min(100, pct))}%`,
-          transition: "width .4s ease",
-        }}
-      />
+    <div className="meter" role="presentation">
+      <span style={{ width: `${v}%` }} />
     </div>
   );
 }
 
-export function PlatformChip({ platform }: { platform: Platform }) {
-  const meta = PLATFORM_META[platform];
+export function PlatformTag({ platform }: { platform: Platform }) {
+  // Platforms without a licensable mark already render as lettering, so showing
+  // the glyph and the name together would read as "XB Xbox".
+  const hasGlyph = Boolean(PLATFORM_BRANDS[platform].path);
   return (
-    <span
-      className="uppercase"
-      style={{
-        fontSize: 9.5,
-        fontWeight: 700,
-        letterSpacing: ".14em",
-        background: "rgba(0,0,0,.6)",
-        border: "1px solid rgba(255,255,255,.12)",
-        borderRadius: 5,
-        padding: "3px 7px",
-        color: "rgba(245,246,247,.7)",
-      }}
-    >
-      {meta.label}
+    <span className="badge" style={{ background: "rgba(5,6,9,0.72)", gap: 5 }}>
+      {hasGlyph && <PlatformMark platform={platform} size={11} />}
+      {PLATFORM_META[platform].label}
     </span>
   );
 }
@@ -103,13 +86,13 @@ export function PlatformChip({ platform }: { platform: Platform }) {
 export function Avatar({
   src,
   size = 44,
-  radius = 9,
-  label = "AVATAR",
+  radius = 10,
+  name,
 }: {
   src?: string | null;
   size?: number;
   radius?: number;
-  label?: string;
+  name?: string;
 }) {
   if (src) {
     return (
@@ -119,47 +102,60 @@ export function Avatar({
         alt=""
         width={size}
         height={size}
-        style={{ width: size, height: size, borderRadius: radius, objectFit: "cover", flex: "none" }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: radius,
+          objectFit: "cover",
+          flex: "none",
+          border: "1px solid var(--line)",
+        }}
       />
     );
   }
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "";
   return (
     <div
+      aria-hidden="true"
       className="grid place-items-center"
       style={{
         width: size,
         height: size,
         borderRadius: radius,
-        background: "var(--surface-4)",
-        color: "var(--text-5)",
-        fontSize: 10,
-        letterSpacing: ".14em",
+        background: "var(--surface-3)",
+        border: "1px solid var(--line)",
+        color: "var(--text-4)",
+        fontFamily: "var(--font-display)",
+        fontStretch: "110%",
+        fontWeight: 700,
+        fontSize: Math.max(11, Math.round(size * 0.36)),
         flex: "none",
       }}
     >
-      {size >= 60 ? label : ""}
+      {initial}
     </div>
   );
 }
 
-export function GameArt({
+export function CoverArt({
   src,
   name,
-  ratio = "3/4",
-  children,
+  ratio = "3 / 4",
+  corner,
 }: {
   src?: string | null;
   name: string;
   ratio?: string;
-  children?: ReactNode;
+  corner?: ReactNode;
 }) {
   return (
     <div
-      className="relative grid"
       style={{
+        position: "relative",
         aspectRatio: ratio,
-        background: "var(--surface-5)",
-        placeItems: "end center",
+        background: "var(--surface-3)",
+        display: "grid",
+        alignItems: "end",
         padding: 12,
         overflow: "hidden",
       }}
@@ -169,13 +165,13 @@ export function GameArt({
         <img
           src={src}
           alt=""
+          loading="lazy"
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            opacity: 0.9,
           }}
         />
       )}
@@ -185,14 +181,25 @@ export function GameArt({
           position: "absolute",
           inset: 0,
           background: src
-            ? "linear-gradient(180deg,rgba(5,5,6,.15),rgba(5,5,6,.86))"
-            : "none",
+            ? "linear-gradient(180deg, rgba(5,6,9,0.1) 30%, rgba(5,6,9,0.88) 100%)"
+            : "linear-gradient(180deg, transparent, rgba(5,6,9,0.4))",
         }}
       />
-      {children}
+      {corner && (
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>{corner}</div>
+      )}
       <span
-        className="relative text-center"
-        style={{ fontSize: 13.5, fontWeight: 600, textWrap: "balance" }}
+        style={{
+          position: "relative",
+          fontSize: 13,
+          fontWeight: 600,
+          lineHeight: 1.3,
+          textWrap: "balance",
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
       >
         {name}
       </span>
@@ -200,7 +207,7 @@ export function GameArt({
   );
 }
 
-export function EmptyState({
+export function Empty({
   title,
   body,
   cta,
@@ -210,36 +217,107 @@ export function EmptyState({
   cta?: { href: string; label: string };
 }) {
   return (
-    <div className="card text-center" style={{ padding: "52px 30px" }}>
-      <div
-        className="font-display font-bold uppercase"
-        style={{ fontSize: 20, letterSpacing: ".08em", marginBottom: 10 }}
-      >
+    <div
+      className="card"
+      style={{ padding: "clamp(36px, 6vw, 60px) 28px", textAlign: "center" }}
+    >
+      <h2 className="t-display" style={{ fontSize: 18, marginBottom: 12 }}>
         {title}
-      </div>
-      <p style={{ fontSize: 14, color: "var(--text-3)", margin: "0 auto 22px", maxWidth: "48ch", lineHeight: 1.6 }}>
+      </h2>
+      <p
+        className="t-body"
+        style={{ margin: "0 auto", maxWidth: "50ch" }}
+      >
         {body}
       </p>
       {cta && (
-        <Link href={cta.href} className="btn-primary" style={{ textDecoration: "none" }}>
-          {cta.label}
-        </Link>
+        <div style={{ marginTop: 24 }}>
+          <Link href={cta.href} className="btn btn-primary">
+            {cta.label}
+          </Link>
+        </div>
       )}
     </div>
   );
 }
 
-export function RatingBadge({ value, delta }: { value: number; delta?: number }) {
+export function Notice({
+  kind = "info",
+  children,
+}: {
+  kind?: "info" | "ok" | "bad";
+  children: ReactNode;
+}) {
+  const tone = {
+    info: { border: "var(--accent-45)", bg: "var(--accent-08)", color: "var(--text-2)" },
+    ok: { border: "rgba(62,207,142,0.32)", bg: "var(--ok-bg)", color: "var(--ok)" },
+    bad: { border: "rgba(255,107,107,0.32)", bg: "var(--bad-bg)", color: "var(--bad)" },
+  }[kind];
+
   return (
-    <div className="flex items-center gap-[9px]" style={{ fontSize: 13.5, fontWeight: 600 }}>
-      <StarIcon />
-      <span className="tnum">{value.toLocaleString()}</span>
+    <p
+      role={kind === "bad" ? "alert" : "status"}
+      style={{
+        fontSize: 13.5,
+        lineHeight: 1.55,
+        border: `1px solid ${tone.border}`,
+        background: tone.bg,
+        color: tone.color,
+        borderRadius: "var(--r-sm)",
+        padding: "11px 14px",
+        margin: 0,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+export function RatingPill({ value, delta }: { value: number; delta?: number }) {
+  return (
+    <span className="flex items-center" style={{ gap: 8 }}>
+      <span className="t-num" style={{ fontSize: 15 }}>
+        {value.toLocaleString()}
+      </span>
       {delta !== undefined && delta !== 0 && (
-        <span style={{ color: delta > 0 ? "var(--success)" : "var(--danger)", fontWeight: 500 }}>
-          {delta > 0 ? "↗" : "↘"} {delta > 0 ? "+" : ""}
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: delta > 0 ? "var(--ok)" : "var(--bad)",
+          }}
+        >
+          {delta > 0 ? "+" : ""}
           {delta}
         </span>
       )}
+    </span>
+  );
+}
+
+export function Grid({
+  cols,
+  gap = 16,
+  children,
+  min,
+}: {
+  cols?: 2 | 3 | 4;
+  gap?: number;
+  min?: number;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      data-cols={cols ? String(cols) : undefined}
+      style={{
+        display: "grid",
+        gap,
+        gridTemplateColumns: min
+          ? `repeat(auto-fill, minmax(${min}px, 1fr))`
+          : `repeat(${cols ?? 3}, minmax(0, 1fr))`,
+      }}
+    >
+      {children}
     </div>
   );
 }

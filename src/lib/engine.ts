@@ -3,7 +3,7 @@ import { query, one } from "./db";
 import { getAttributes } from "./stats";
 
 /* ---------------------------------------------------------------
-   Challenges — generated from the player's own library, not canned.
+   Challenges, generated from the player's own library, not canned.
    --------------------------------------------------------------- */
 
 export interface ChallengeRow {
@@ -151,7 +151,7 @@ export async function ensureChallenges(userId: string): Promise<ChallengeRow[]> 
 }
 
 /* ---------------------------------------------------------------
-   Suggestions — a curated catalogue scored against real attributes.
+   Suggestions: a curated catalogue scored against real attributes.
    --------------------------------------------------------------- */
 
 interface CatalogEntry {
@@ -176,19 +176,19 @@ const CATALOG: CatalogEntry[] = [
     why: "A map that rewards thorough sweeps. Fits the way your completion score already trends." },
   { title: "Deep Rock Galactic", platform: "Steam", genre: "Co-op Shooter", tags: ["Co-op"], hours: 60,
     weights: { Teamwork: 1, Consistency: 0.6 },
-    why: "Your teamwork score is your most underused strength — this is the cheapest way to exercise it." },
+    why: "Your teamwork score is your most underused strength, and this is the cheapest way to exercise it." },
   { title: "Into the Breach", platform: "Steam", genre: "Tactics", tags: ["Under 20 hours"], hours: 15,
     weights: { Strategy: 1, Precision: 0.5 },
     why: "Perfect-information tactics in twenty-minute runs. Straight at your strategy score, and short enough to actually finish." },
   { title: "Nine Sols", platform: "Steam", genre: "Action Platformer", tags: ["Action", "Metroidvania"], hours: 25,
     weights: { Precision: 0.9, Completion: 0.6, Mastery: 0.5 },
-    why: "Deflect-heavy combat in a tight 25-hour run — suits the way you finish games you commit to." },
+    why: "Deflect-heavy combat in a tight 25-hour run. It suits the way you finish games you commit to." },
   { title: "Outer Wilds", platform: "Steam", genre: "Exploration", tags: ["Under 20 hours"], hours: 20,
     weights: { Versatility: 0.8, Strategy: 0.7, Adaptability: 0.6 },
     why: "No upgrades, only understanding. It rewards curiosity and lateral thinking over reflexes." },
   { title: "Forza Horizon 5", platform: "Xbox", genre: "Racing", tags: ["Action"], hours: 50,
     weights: { Precision: 0.8, Consistency: 0.7 },
-    why: "Low-friction, high-consistency progression — good for keeping a streak alive between heavier games." },
+    why: "Low friction, high consistency progression. Good for keeping a streak alive between heavier games." },
   { title: "Hades II", platform: "Steam", genre: "Roguelike", tags: ["Roguelike", "Action"], hours: 45,
     weights: { Adaptability: 0.9, Mastery: 0.8, Consistency: 0.6 },
     why: "Build variety that punishes rigid play. Your adaptability and mastery both feed directly into how fast this opens up." },

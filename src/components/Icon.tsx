@@ -24,6 +24,11 @@ export const ICON_PATHS = {
   alert: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z",
   plus: "M12 5v14M5 12h14",
   chevron: "m9 6 6 6-6 6",
+  external: "M14 4h6v6M20 4l-8.5 8.5M18 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5",
+  sort: "M7 4v16M7 4 4 7.5M7 4l3 3.5M17 20V4M17 20l3-3.5M17 20l-3-3.5",
+  arrowRight: "M4 12h15M13 6l6 6-6 6",
+  sparkle: "M12 3.4l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z",
+  target: "M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18M12 16.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9M12 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2",
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;
@@ -53,14 +58,6 @@ export function Icon({
       aria-hidden="true"
     >
       <path d={ICON_PATHS[name]} />
-    </svg>
-  );
-}
-
-export function StarIcon({ size = 13, color = "var(--accent)" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
-      <path d="m12 3 2.6 6.1 6.6.5-5 4.3 1.5 6.5L12 17l-5.7 3.4L7.8 14l-5-4.3 6.6-.5z" />
     </svg>
   );
 }

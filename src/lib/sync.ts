@@ -249,7 +249,7 @@ async function syncSteam(userId: string, steamId: string): Promise<SyncResult> {
     remaining,
     message:
       remaining > 0
-        ? `${owned.length} games synced. ${remaining} still need achievements — run sync again.`
+        ? `${owned.length} games synced. ${remaining} still need achievements. Run sync again.`
         : `${owned.length} games synced and fully up to date.`,
   };
 }
@@ -295,7 +295,7 @@ async function syncPsn(userId: string, accountRowId: string, secret: string | nu
     remaining,
     message:
       remaining > 0
-        ? `${titles.length} titles synced. ${remaining} still need trophies — run sync again.`
+        ? `${titles.length} titles synced. ${remaining} still need trophies. Run sync again.`
         : `${titles.length} titles synced and fully up to date.`,
   };
 }
@@ -327,7 +327,7 @@ async function syncXbox(userId: string, xuid: string, secret: string | null): Pr
     remaining,
     message:
       remaining > 0
-        ? `${titles.length} titles synced. ${remaining} still need achievements — run sync again.`
+        ? `${titles.length} titles synced. ${remaining} still need achievements. Run sync again.`
         : `${titles.length} titles synced and fully up to date.`,
   };
 }

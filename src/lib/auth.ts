@@ -38,7 +38,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (!token) return null;
   try {
     return await one<SessionUser>(
-      `select u.id, u.email, u.username, u.display_name, u.avatar_url, u.bio, u.is_public
+      `select u.id, u.email, u.username, u.display_name, u.avatar_url, u.bio,
+              u.is_public, u.show_playtime, u.share_activity
          from sessions s join users u on u.id = s.user_id
         where s.token_hash = $1 and s.expires_at > now()`,
       [sha256(token)]

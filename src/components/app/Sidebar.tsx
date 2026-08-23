@@ -6,110 +6,127 @@ import { Icon, type IconName } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import { logoutAction } from "@/actions/auth";
 
-const NAV: { href: string; label: string; icon: IconName }[] = [
+const PRIMARY: { href: string; label: string; icon: IconName }[] = [
   { href: "/home", label: "Home", icon: "home" },
-  { href: "/suggestions", label: "Suggestions", icon: "suggestions" },
   { href: "/library", label: "Library", icon: "library" },
-  { href: "/rating", label: "Gamer Rating", icon: "rating" },
+  { href: "/rating", label: "Rating", icon: "rating" },
+  { href: "/suggestions", label: "Suggestions", icon: "suggestions" },
   { href: "/challenges", label: "Challenges", icon: "challenges" },
   { href: "/rewards", label: "Rewards", icon: "rewards" },
   { href: "/friends", label: "Friends", icon: "friends" },
 ];
 
-const BOTTOM: { href: string; label: string; icon: IconName }[] = [
+const SECONDARY: { href: string; label: string; icon: IconName }[] = [
   { href: "/profile", label: "Profile", icon: "profile" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <>
       <aside
-        data-side
-        className="sticky self-start flex flex-col"
+        data-sidebar
+        className="stack"
         style={{
+          position: "sticky",
           top: 0,
+          alignSelf: "start",
           height: "100vh",
           background: "var(--bg)",
-          borderRight: "1px solid var(--border)",
-          padding: "0 14px 18px",
+          borderRight: "1px solid var(--line)",
+          padding: "0 12px 16px",
         }}
       >
         <div
           className="flex items-center"
           style={{
-            height: 66,
-            borderBottom: "1px solid rgba(255,255,255,.06)",
-            margin: "0 -14px 18px",
-            paddingLeft: 22,
+            height: 64,
+            paddingLeft: 10,
+            marginBottom: 16,
+            borderBottom: "1px solid var(--line)",
+            marginInline: -12,
+            paddingInline: 22,
           }}
         >
-          <Logo />
+          <Logo href="/home" height={19} />
         </div>
 
-        <div className="flex flex-col gap-[3px]">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="nav-item" data-active={active(n.href)}>
-              <Icon name={n.icon} />
+        <nav className="stack" style={{ gap: 2 }} aria-label="Main">
+          {PRIMARY.map((n) => (
+            <Link key={n.href} href={n.href} className="nav-item" data-active={isActive(n.href)}>
+              <Icon name={n.icon} size={16} />
               <span>{n.label}</span>
             </Link>
           ))}
-        </div>
+        </nav>
 
-        <span className="flex-1" />
+        <span style={{ flex: 1 }} />
 
-        <div
-          className="flex flex-col gap-[3px]"
-          style={{ paddingTop: 16, borderTop: "1px solid rgba(255,255,255,.06)" }}
+        <nav
+          className="stack"
+          style={{ gap: 2, paddingTop: 14, borderTop: "1px solid var(--line)" }}
+          aria-label="Account"
         >
-          {BOTTOM.map((n) => (
-            <Link key={n.href} href={n.href} className="nav-item" data-active={active(n.href)}>
-              <Icon name={n.icon} />
+          {SECONDARY.map((n) => (
+            <Link key={n.href} href={n.href} className="nav-item" data-active={isActive(n.href)}>
+              <Icon name={n.icon} size={16} />
               <span>{n.label}</span>
             </Link>
           ))}
           <form action={logoutAction}>
-            <button type="submit" className="nav-item w-full" style={{ background: "none", border: "none", cursor: "pointer" }}>
-              <Icon name="logout" />
-              <span>Log Out</span>
+            <button
+              type="submit"
+              className="nav-item"
+              style={{ width: "100%", background: "none", border: 0, cursor: "pointer" }}
+            >
+              <Icon name="logout" size={16} />
+              <span>Log out</span>
             </button>
           </form>
-        </div>
+        </nav>
       </aside>
 
       <nav
-        data-bottombar
-        className="fixed"
+        data-tabbar
+        aria-label="Main"
         style={{
           display: "none",
+          position: "fixed",
+          insetInline: 0,
           bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 80,
-          background: "var(--bg)",
-          borderTop: "1px solid rgba(255,255,255,.08)",
+          zIndex: 60,
+          background: "rgba(5,6,9,0.94)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderTop: "1px solid var(--line)",
           justifyContent: "space-around",
-          padding: "6px 4px 10px",
+          padding: "6px 4px calc(6px + env(safe-area-inset-bottom))",
         }}
       >
-        {NAV.map((n) => (
-          <Link
-            key={n.href}
-            href={n.href}
-            aria-label={n.label}
-            className="grid place-items-center"
-            style={{
-              minWidth: 48,
-              minHeight: 44,
-              color: active(n.href) ? "var(--text)" : "var(--text-2)",
-            }}
-          >
-            <Icon name={n.icon} size={20} />
-          </Link>
-        ))}
+        {[...PRIMARY.slice(0, 5), SECONDARY[1]].map((n) => {
+          const active = isActive(n.href);
+          return (
+            <Link
+              key={n.href}
+              href={n.href}
+              aria-label={n.label}
+              aria-current={active ? "page" : undefined}
+              className="grid place-items-center"
+              style={{
+                minWidth: 48,
+                minHeight: 46,
+                gap: 3,
+                color: active ? "var(--accent-text)" : "var(--text-4)",
+              }}
+            >
+              <Icon name={n.icon} size={19} />
+              <span style={{ fontSize: 9, letterSpacing: "0.06em" }}>{n.label}</span>
+            </Link>
+          );
+        })}
       </nav>
     </>
   );

@@ -1,11 +1,12 @@
 import { requireUser } from "@/lib/auth";
 import { ensureChallenges } from "@/lib/engine";
 import { getUserSummary } from "@/lib/stats";
-import { PageHeading, Progress, EmptyState } from "@/components/app/ui";
-import { timeAgo } from "@/lib/utils";
+import { PageHead, Meter, Empty, Grid } from "@/components/app/ui";
+import { Icon } from "@/components/Icon";
+import { ofLabel, timeUntil } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Challenges · Trace" };
+export const metadata = { title: "Challenges" };
 
 export default async function ChallengesPage() {
   const user = await requireUser();
@@ -13,110 +14,95 @@ export default async function ChallengesPage() {
 
   if (summary.games === 0) {
     return (
-      <div>
-        <PageHeading title="Challenges" subtitle="Generated from how you actually play." />
-        <EmptyState
+      <>
+        <PageHead title="Challenges" subtitle="Written from your own library, not a generic list." />
+        <Empty
           title="No challenges yet"
-          body="Challenges are written from your own library — the games you nearly finished, the ones gathering dust, the ones you never launched. Sync first."
-          cta={{ href: "/settings", label: "Connect a platform" }}
+          body="Challenges are generated from the games you nearly finished, the ones gathering dust and the ones you never launched. They appear after your first sync."
+          cta={{ href: "/settings", label: "Connect an account" }}
         />
-      </div>
+      </>
     );
   }
 
   const challenges = await ensureChallenges(user.id);
-  const active = challenges.find((c) => !c.completed_at);
+  const daily = challenges.filter((c) => c.kind === "Daily");
+  const weekly = challenges.filter((c) => c.kind === "Weekly");
+
+  const Card = ({ c }: { c: (typeof challenges)[number] }) => {
+    const done = Boolean(c.completed_at);
+    return (
+      <article
+        className="card"
+        style={{ padding: 20, opacity: done ? 0.6 : 1 }}
+      >
+        <div className="flex items-start justify-between" style={{ gap: 12, marginBottom: 12 }}>
+          <h3 className="t-display" style={{ fontSize: 16 }}>
+            {c.title}
+          </h3>
+          <span className={done ? "badge" : "badge badge-accent"}>{done ? "Done" : c.kind}</span>
+        </div>
+        <p className="t-body" style={{ margin: "0 0 16px", fontSize: 13.5 }}>
+          {c.description}
+        </p>
+        <Meter pct={(c.progress / Math.max(1, c.target)) * 100} />
+        <div
+          className="flex items-center justify-between"
+          style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}
+        >
+          <span className="t-sm flex items-center" style={{ gap: 7, fontSize: 12.5 }}>
+            <Icon name="trophy" size={13} />
+            {c.xp} XP{c.badge ? ` and ${c.badge}` : ""}
+          </span>
+          <span className="t-sm" style={{ fontSize: 12.5 }}>
+            {c.target > 1 ? `${ofLabel(c.progress, c.target)} · ` : ""}
+            {timeUntil(c.expires_at)}
+          </span>
+        </div>
+      </article>
+    );
+  };
 
   return (
-    <div>
-      <PageHeading
+    <>
+      <PageHead
         title="Challenges"
-        subtitle="Generated from how you actually play. Complete them to move your attributes."
+        subtitle="Generated from how you actually play. They refresh as they expire."
       />
 
-      {active && (
-        <div
-          className="card grid items-center"
-          style={{
-            borderColor: "rgba(46,125,255,.3)",
-            padding: 26,
-            marginBottom: 28,
-            gridTemplateColumns: "minmax(0,1fr) auto",
-            gap: 26,
-          }}
-        >
-          <div>
-            <span
-              className="uppercase"
-              style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".16em", color: "var(--accent)" }}
-            >
-              Active · {active.kind}
-            </span>
-            <h2
-              className="font-display font-bold uppercase"
-              style={{ fontSize: 26, letterSpacing: ".05em", margin: "12px 0 8px" }}
-            >
-              {active.title}
-            </h2>
-            <p style={{ fontSize: 14.5, color: "var(--text-2)", margin: "0 0 18px" }}>{active.description}</p>
-            <div className="flex items-center gap-[14px]" style={{ maxWidth: 420 }}>
-              <div className="flex-1">
-                <Progress pct={(active.progress / active.target) * 100} height={6} />
-              </div>
-              <span style={{ fontSize: 12.5, color: "var(--text-3)", whiteSpace: "nowrap" }}>
-                {active.progress} of {active.target} · {timeAgo(active.expires_at).replace(" ago", " left")}
-              </span>
-            </div>
-          </div>
-        </div>
+      <div className="card" style={{ padding: "14px 18px", marginBottom: 26 }}>
+        <p className="t-sm" style={{ margin: 0 }}>
+          Progress currently updates when a sync detects the relevant achievements. Live tracking
+          during a session is not something any platform exposes, so treat these as targets to sync
+          against rather than a live counter.
+        </p>
+      </div>
+
+      {daily.length > 0 && (
+        <section style={{ marginBottom: 32 }}>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            Daily
+          </h2>
+          <Grid cols={2} gap={14}>
+            {daily.map((c) => (
+              <Card key={c.id} c={c} />
+            ))}
+          </Grid>
+        </section>
       )}
 
-      <div data-cols2 className="grid" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 16 }}>
-        {challenges.map((c) => (
-          <div key={c.id} className="card" style={{ borderRadius: 12, padding: 20 }}>
-            <div className="flex justify-between items-start" style={{ marginBottom: 12 }}>
-              <span
-                className="font-display font-bold uppercase"
-                style={{ fontSize: 18, letterSpacing: ".05em" }}
-              >
-                {c.title}
-              </span>
-              <span
-                className="uppercase"
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  letterSpacing: ".14em",
-                  color: "var(--text-3)",
-                  border: "1px solid rgba(255,255,255,.12)",
-                  borderRadius: 6,
-                  padding: "4px 8px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {c.kind}
-              </span>
-            </div>
-            <p style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--text-2)", margin: "0 0 16px" }}>
-              {c.description}
-            </p>
-            <div
-              className="flex justify-between items-center"
-              style={{
-                fontSize: 12.5,
-                color: "var(--text-3)",
-                paddingTop: 14,
-                borderTop: "1px solid var(--border)",
-              }}
-            >
-              <span>
-                {c.xp} XP{c.badge ? ` + ${c.badge}` : ""}
-              </span>
-              <span>{timeAgo(c.expires_at).replace(" ago", " left")}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      {weekly.length > 0 && (
+        <section>
+          <h2 className="t-h2" style={{ marginBottom: 16 }}>
+            This week
+          </h2>
+          <Grid cols={2} gap={14}>
+            {weekly.map((c) => (
+              <Card key={c.id} c={c} />
+            ))}
+          </Grid>
+        </section>
+      )}
+    </>
   );
 }

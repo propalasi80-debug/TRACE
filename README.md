@@ -25,7 +25,7 @@ Designed against the Claude Design "Trace" handoff: same tokens, type, motion an
 | Challenges generated from your own library | live |
 | Rewards / milestone badges from real totals | live |
 | Friends, requests, public profiles at `/u/username` | live |
-| Scheduled background sync (Vercel Cron, every 6h) | live |
+| Scheduled background sync (Vercel Cron, daily) | live |
 | Epic, Nintendo, GOG, Battle.net, Riot, itch.io | not connected — no usable public API |
 
 Nothing on screen is mock data. If a section is empty it is because nothing has
@@ -132,7 +132,9 @@ serverless function's time limit:
    (Steam 25, PSN 12, Xbox 10) and pull their achievement lists.
 3. Report how many games still need a pass; the UI invites another sync.
 
-`/api/cron/sync` does the same for the five stalest accounts every six hours.
+`/api/cron/sync` does the same for the stalest accounts once a day (Vercel's
+Hobby plan allows one cron run per day; on Pro you can raise the frequency in
+`vercel.json`).
 
 ---
 

@@ -4,9 +4,14 @@ import { loginAction } from "@/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Log in · Trace" };
+export const metadata = { title: "Log in" };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   if (await getCurrentUser()) redirect("/home");
-  return <AuthCard mode="login" action={loginAction} />;
+  const { error } = await searchParams;
+  return <AuthCard mode="login" action={loginAction} notice={error} />;
 }

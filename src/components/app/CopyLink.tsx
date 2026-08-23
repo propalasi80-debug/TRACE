@@ -1,23 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/Icon";
 
 export function CopyLink({ url }: { url: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+
   return (
     <button
-      className="btn-ghost"
+      className="btn btn-secondary btn-sm"
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(url);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1800);
+          setState("copied");
         } catch {
-          setCopied(false);
+          setState("failed");
         }
+        setTimeout(() => setState("idle"), 2000);
       }}
     >
-      {copied ? "Copied" : "Copy link"}
+      <Icon name={state === "copied" ? "check" : "link"} size={14} />
+      {state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : "Copy link"}
     </button>
   );
 }
